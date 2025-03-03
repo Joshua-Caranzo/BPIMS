@@ -4,6 +4,7 @@ import { UserDetails } from '../types/userType';
 import { BranchStockDto, ItemStock, StockInputHistoryDto } from '../types/stockType';
 import { ItemHQDto } from '../types/itemType';
 import { CustomerListDto } from '../types/customerType';
+import { WHStockDto } from '../types/whType';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -87,6 +88,7 @@ export type WarehouseStackParamList = {
 
 export type WhStockStackParamList = {
     WHScreen: undefined;
+    StockInput: { item: WHStockDto, user: UserDetails }
 };
 
 export type SalesStackNavigationProps<T extends keyof SalesStackParamList> =

@@ -41,8 +41,8 @@ const WHSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
         }).start();
     }, [isVisible, sidebarWidth]);
 
-    /* useEffect(() => {
-        const socket = getSocketData('criticalItemsHQ');
+    useEffect(() => {
+        const socket = getSocketData('criticalItemsWH');
 
         socket.onmessage = (event) => {
             debouncedSetCriticalCount(Number(event.data));
@@ -51,7 +51,7 @@ const WHSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
         return () => {
             socket.close();
         };
-    }, [debouncedSetCriticalCount]); */
+    }, [debouncedSetCriticalCount]);
 
     const handleClick = useCallback((page: keyof RootStackParamList) => {
         toggleSidebar();
@@ -82,7 +82,7 @@ const WHSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
                 <View className="relative w-full flex-row justify-center items-center">
                     <View className="items-center flex-1">
                         <Text className={`text-white font-bold ${isTablet ? "text-[20px]" : "text-[14px]"}`}>
-                            HEADQUARTERS
+                            WAREHOUSE
                         </Text>
                         <Text className={`text-white ${isTablet ? "text-lg" : "text-[12px]"}`}>
                             {userDetails?.name.toUpperCase()}
@@ -104,6 +104,11 @@ const WHSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
                 >
                     <View className="w-10 items-center">{item.IconComponent}</View>
                     <Text className={`text-white ${isTablet ? "text-lg" : "text-base"} ml-2`}>{item.text}</Text>
+                    {item.text === "WH Stocks" && criticalCount > 0 && (
+                        <View className="bg-red-500 rounded-full px-1.5 flex items-center justify-center -mt-3">
+                            <Text className="text-white text-xs font-bold">{criticalCount}</Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
             ))}
 

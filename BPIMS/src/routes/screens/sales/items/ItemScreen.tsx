@@ -93,6 +93,8 @@ const ItemScreen = () => {
         setUser(userResponse)
         const response = await getProducts(categoryId, page, search.trim(), Number(userResponse?.branchId));
         if (response.isSuccess) {
+            FastImage.clearMemoryCache();
+            FastImage.clearDiskCache();
             let newProducts = response.data;
             const cartResponse = await getCart();
             const cartItems = cartResponse.data.cartItems;
@@ -429,14 +431,15 @@ const ItemScreen = () => {
                     <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
                     <TouchableOpacity disabled={buttonLoading == true} onPress={addToCartFaction} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${quantity === "0.00" ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                     >
-                        <View className="flex-1 flex flex-row items-center justify-center">
+                        <View className="flex-1 items-center">
                             <Text className={`text-lg text-center font-bold ${quantity === "0.00" ? 'text-[#fe6500]' : 'text-white'}`}>
                                 Send to cart
                             </Text>
-                            {buttonLoading && (
-                                <ActivityIndicator color={"white"} size={'small'} />
-                            )}
                         </View>
+
+                        {buttonLoading && (
+                            <ActivityIndicator color={"white"} size={'small'} />
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>

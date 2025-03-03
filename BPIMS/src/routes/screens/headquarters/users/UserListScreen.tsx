@@ -32,6 +32,7 @@ const UserListScreen = React.memo(() => {
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
+        
         const userDetails = await getUserDetails();
         setUser(userDetails);
         const response = await getUsers(search);

@@ -262,7 +262,6 @@ async def processPayment(cartId, amountReceived):
         return create_response(False, 'Transaction Error. Please Try Again!'), 404
 
     slip_no = await generate_slip_no(cart.userId)
-
     total_profit = 0 
 
     transaction = await Transaction.create(
@@ -299,7 +298,8 @@ async def processPayment(cartId, amountReceived):
                 "name": item.name,
                 "price": item.price,
                 "quantity": tItem.quantity,
-                "amount": tItem.amount
+                "amount": tItem.amount,
+                "sellByUnit": item.sellByUnit
             })
 
     transaction.profit = total_profit
@@ -349,7 +349,6 @@ async def generate_slip_no(cashierId: int) -> str:
     end_of_day = datetime.combine(today_date, time.max)
 
     transaction_count = await Transaction.filter(transactionDate__gte=start_of_day, transactionDate__lte=end_of_day).count()
-
     slip_count = transaction_count + 1
     slip_count_str = f"{slip_count:03d}" 
     

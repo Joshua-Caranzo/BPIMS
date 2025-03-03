@@ -50,6 +50,8 @@ const ItemListScreen = () => {
     useEffect(() => {
         const getCategoryList = async () => {
             setLoadingCategory(true);
+            FastImage.clearMemoryCache();
+            FastImage.clearDiskCache();
             const response = await getCategoriesHQ();
             if (response.isSuccess) {
                 setCategories(response.data);

@@ -48,8 +48,11 @@ export default function StockInputScreen({ route }: Props) {
         getStockInputHistory();
     }, []);
 
+
     async function getStockInputHistory() {
         setLoading(true);
+        FastImage.clearMemoryCache();
+        FastImage.clearDiskCache();
         const response = await getStockHistory(item.id);
         setItemHistory(response.data);
         setLoading(false)
@@ -401,12 +404,12 @@ export default function StockInputScreen({ route }: Props) {
                                 className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                                 disabled={!isValid}
                             >
-                                <View className="flex-1 flex flex-row items-center justify-center">
+                                <View className="flex-1 items-center">
                                     <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
-                                    {loading && (
-                                        <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
-                                    )}
                                 </View>
+                                {loading && (
+                                    <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                                )}
                             </TouchableOpacity>
                         </View>
                     )

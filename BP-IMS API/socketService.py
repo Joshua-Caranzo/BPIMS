@@ -254,9 +254,37 @@ async def criticalItemsHQ(websocket):
         connection = Tortoise.get_connection('default')
         result = await connection.execute_query_dict(count_query)
 
-        critical_count = result[0]['critical_count']
+        bi_critical_count = result[0]['critical_count']
+
+        wi_count_query = f"""
+            SELECT COUNT(*) as critical_count
+            FROM warehouseitems bi
+            INNER JOIN items i ON i.id = bi.itemid
+            WHERE i.criticalValue > bi.quantity
+            AND i.isManaged = 1
+        """
+        connection = Tortoise.get_connection('default')
+        result = await connection.execute_query_dict(wi_count_query)
+
+        wi_critical_count = result[0]['critical_count']
+        critical_count = bi_critical_count + wi_critical_count
         await websocket.send(str(critical_count)) 
 
         await asyncio.sleep(5)
 
+async def criticalItemsWH(websocket):
+    while True:
+        wi_count_query = f"""
+            SELECT COUNT(*) as critical_count
+            FROM warehouseitems bi
+            INNER JOIN items i ON i.id = bi.itemid
+            WHERE i.criticalValue > bi.quantity
+            AND i.isManaged = 1
+        """
+        connection = Tortoise.get_connection('default')
+        result = await connection.execute_query_dict(wi_count_query)
 
+        critical_count = result[0]['critical_count']
+        await websocket.send(str(critical_count)) 
+
+        await asyncio.sleep(5)

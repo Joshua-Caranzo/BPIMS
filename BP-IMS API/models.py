@@ -137,3 +137,15 @@ class WareHouseItem(Model):
 
     class Meta:
         table = "WareHouseItems"
+
+class WHStockInput(Model):
+    id = fields.IntField(null=False, pk=True)
+    qty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
+    moq = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
+    deliveryDate = fields.DateField(null=False)
+    deliveredBy = fields.CharField(max_length=255, null=False)
+    expectedQty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
+    actualQty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
+    itemId = fields.IntField(null=False)
+    class Meta:
+        table = "whStockInputs"

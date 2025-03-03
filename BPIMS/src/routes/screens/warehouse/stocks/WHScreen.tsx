@@ -1,15 +1,105 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { UserDetails } from "../../../types/userType";
 import WHSidebar from "../../../../components/WHSidebar";
 import { getUserDetails } from "../../../utils/auth";
-import { Menu } from "react-native-feather";
-
+import { Menu, PlusCircle, Search } from "react-native-feather";
+import { WHStockDto } from "../../../types/whType";
+import { getWHStocks } from "../../../services/whRepo";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { WhStockStackParamList } from "../../../navigation/navigation";
+import { getSocketData } from "../../../utils/apiService";
+import { debounce } from "lodash";
 
 const WHScreen = React.memo(() => {
     const [isSidebarVisible, setSidebarVisible] = useState(false);
     const [user, setUser] = useState<UserDetails>();
     const [activeCategory, setActiveCategory] = useState(0);
+    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState('');
+    const [lastCategory, setLastCategory] = useState<number | null>(null);
+    const [stocks, setStocks] = useState<WHStockDto[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [loadMore, setLoadMore] = useState(false);
+    const [hasMoreData, setHasMoreData] = useState(true);
+    const [criticalCount, setCriticalCount] = useState(0);
+    const inputRef = useRef<TextInput>(null);
+    const navigation = useNavigation<NativeStackNavigationProp<WhStockStackParamList>>();
+
+    useEffect(() => {
+        getItems(activeCategory, page, search);
+    }, [search, activeCategory, page]);
+
+    const debouncedSetCriticalCount = useCallback(debounce((count: number) => {
+        setCriticalCount(count);
+    }, 100), []);
+
+    useEffect(() => {
+        const socket = getSocketData('criticalItemsWH');
+
+        socket.onmessage = (event) => {
+            debouncedSetCriticalCount(Number(event.data));
+        };
+
+        return () => {
+            socket.close();
+        };
+    }, [debouncedSetCriticalCount]);
+
+
+    const getItems = useCallback(
+        async (categoryId: number, page: number, search: string) => {
+            if (activeCategory !== lastCategory) {
+                setStocks([]);
+            }
+            if (!loadMore) setLoading(true);
+
+            const userResponse = await getUserDetails();
+            setUser(userResponse);
+
+            const response = await getWHStocks(
+                categoryId,
+                page,
+                search.trim(),
+                Number(userResponse?.branchId)
+            );
+            if (response.isSuccess) {
+                const newProducts = response.data;
+                setStocks((prevProducts) =>
+                    page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                );
+                setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
+            } else {
+                setStocks([]);
+            }
+
+            setLoading(false);
+            setLoadMore(false);
+        },
+        [activeCategory, lastCategory, loadMore, stocks.length]
+    );
+
+    const handleLoadMore = useCallback(() => {
+        if (loading || loadMore || !hasMoreData) return;
+        setLastCategory(activeCategory);
+        setLoadMore(true);
+        setPage(prevPage => prevPage + 1);
+    }, [hasMoreData, loading, loadMore, activeCategory]);
+
+
+    const handleChangeCategory = useCallback((id: number) => {
+        if (activeCategory !== id) {
+            setActiveCategory(id);
+            setPage(1);
+            setStocks([]);
+            setHasMoreData(false);
+        }
+    }, [activeCategory]);
+
+    const handleSearchClick = useCallback(() => {
+        inputRef.current?.focus();
+    }, []);
 
 
     useEffect(() => {
@@ -24,11 +114,40 @@ const WHScreen = React.memo(() => {
         setSidebarVisible((prev) => !prev);
     }, []);
 
-    const handleChangeCategory = useCallback((id: number) => {
-        if (activeCategory !== id) {
-            setActiveCategory(id);
+    const handleStockInput = useCallback((item: WHStockDto) => {
+        if (user) {
+            navigation.navigate('StockInput', { item, user });
         }
-    }, [activeCategory]);
+    }, [user]);
+
+    const renderItem = useCallback(
+        ({ item }: { item: WHStockDto }) => (
+            <View className="bg-gray pb-2 px-4 border-b border-gray-300 flex flex-row justify-between">
+                <View className="pr-4 flex-1 w-[70%]">
+                    <Text className="text-black text-sm mb-1" numberOfLines={1} ellipsizeMode="tail">
+                        {item.name}
+                    </Text>
+                </View>
+                <View className="flex flex-row w-[20%] justify-end">
+                    <Text
+                        className={`${activeCategory === 1 ? 'text-red-600' : 'text-green-600'} font-bold text-sm`}
+                    >
+                        {item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}
+                    </Text>
+                    <Text className="text-black text-sm">{` ${item.unitOfMeasure || 'pcs'}`}</Text>
+                </View>
+                <TouchableOpacity
+                    onPress={() => handleStockInput(item)}
+                    className="flex flex-row justify-center items-center w-[10%] justify-end"
+                >
+                    <PlusCircle height={15} color="#fe6500" />
+                </TouchableOpacity>
+
+            </View>
+        ),
+        [activeCategory, handleStockInput]
+    );
+
 
     return (
         <View style={{ flex: 1 }}>
@@ -63,11 +182,59 @@ const WHScreen = React.memo(() => {
                                 >
                                     {label}
                                 </Text>
+                                {index === 1 && criticalCount > 0 && (
+                                    <View className="bg-red-500 rounded-full px-1 flex items-center justify-center -mt-3">
+                                        <Text className="text-white text-[8px] font-bold">{criticalCount}</Text>
+                                    </View>
+                                )}
                             </View>
                         </TouchableOpacity>
 
                     ))}
                 </View>
+            </View>
+            <View className="justify-center items-center bg-gray relative mb-2">
+                <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 justify-between items-center">
+                    <View className="flex-row items-center rounded-md px-2 flex-1">
+                        <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
+                            <Search width={20} height={20} color="black" />
+                        </TouchableOpacity>
+                        <TextInput
+                            className="flex-1 h-8 text-black p-1"
+                            placeholder="Search items..."
+                            placeholderTextColor="#8a8a8a"
+                            value={search}
+                            onChangeText={(text) => {
+                                setLoading(true);
+                                setSearch(text);
+                                setPage(1);
+                            }}
+                            ref={inputRef}
+                            selectionColor="orange"
+                            returnKeyType="search"
+                        />
+                    </View>
+                </View>
+                {loading && (
+                    <View className="py-2">
+                        <ActivityIndicator size="small" color="#fe6500" />
+                        <Text className="text-center text-[#fe6500]">Loading stocks...</Text>
+                    </View>
+                )}
+            </View>
+            <View className="flex-1">
+                <FlatList
+                    data={stocks}
+                    renderItem={renderItem}
+                    keyExtractor={(item, index) => item.id.toString() + index.toString()}
+                    onEndReached={handleLoadMore}
+                    onEndReachedThreshold={0.3}
+                    contentContainerStyle={{ paddingBottom: 20 }}
+                    showsVerticalScrollIndicator={false}
+                    ListFooterComponent={
+                        loadMore ? <ActivityIndicator size="small" color="#fe6500" /> : null
+                    }
+                />
             </View>
         </View>
     );
