@@ -25,6 +25,7 @@
     "react-native-date-picker": "^5.0.10",
     "react-native-dev-menu": "^4.1.1",
     "react-native-dotenv": "^3.4.11",
+    "react-native-fast-image": "^8.6.3",
     "react-native-feather": "^1.1.2",
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",

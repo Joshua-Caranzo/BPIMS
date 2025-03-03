@@ -5,6 +5,7 @@ import FileViewer from 'react-native-file-viewer';
 import { getFromBaseApi, postToBaseApi, putToBaseApi } from '../utils/apiService';
 import { CallResultDto } from '../types/CallResultDto';
 import { CartDto, CategoryDto, ItemDto, TransactionDto, TransactionItemsDto, TransactionRequestDto } from '../types/salesType';
+import { Alert } from 'react-native';
 
 export async function getCategories() {
     return await getFromBaseApi<CallResultDto<CategoryDto[]>>('getCategories');
@@ -50,26 +51,32 @@ export async function updateCustomer(id: number | null) {
     return await putToBaseApi<CallResultDto<object>>('updateCustomer', { id });
 }
 
-export async function generateReceipt(transaction: TransactionDto, transactionItems: TransactionItemsDto[]) {
+export async function generateReceipt(transactionId: number, transaction: TransactionDto) {
+
     const config = {
         responseType: 'blob' as ResponseType,
     };
 
-    const blob = await postToBaseApi<Blob>('generateReceipt', { transaction, transactionItems }, config);
-
+    const blob = await postToBaseApi<Blob>('generateReceipt', { transactionId }, config);
     const reader = new FileReader();
     reader.readAsDataURL(blob);
     reader.onloadend = async () => {
         const base64Data = reader.result?.toString().split(',')[1];
 
         if (base64Data) {
-            const filePath = `${RNFS.ExternalStorageDirectoryPath}/Download/receipt.pdf`;
+            const filePath = `${RNFS.DocumentDirectoryPath}/${transaction.slipNo}_receipt.pdf`;
 
             await RNFS.writeFile(filePath, base64Data, 'base64');
 
             await RNFS.scanFile(filePath);
 
-            FileViewer.open(filePath)
+            try {
+                await FileViewer.open(filePath, { showOpenWithDialog: true });
+            } catch (error) {
+                console.error("Error opening file:", error);
+                Alert.alert("Failed to open the receipt. Please ensure you have a PDF viewer installed.");
+            }
         }
     };
+
 }

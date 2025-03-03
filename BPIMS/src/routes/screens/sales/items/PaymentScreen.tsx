@@ -1,29 +1,26 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Image, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { ChevronLeft, Trash2 } from 'react-native-feather';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Cart } from '../../../types/salesType';
 import { getCart, updateCustomer } from '../../../services/salesRepo';
-import { UserDetails } from '../../../types/userType';
-import { getUserDetails } from '../../../utils/auth';
 import BankIcon from '../../../../components/icons/BankIcon';
 import PaypalIcon from '../../../../components/icons/PaypalIcon';
 import StoreIcon from '../../../../components/icons/StoreIcon';
 import { ItemStackParamList } from '../../../navigation/navigation';
 
-const PaymentScreen = React.memo(() => {
+type Props = NativeStackScreenProps<ItemStackParamList, 'Payment'>;
+
+const PaymentScreen = React.memo(({ route }: Props) => {
+    const user = route.params.user;
     const [isLoading, setLoading] = useState<boolean>(false);
     const [total, setTotal] = useState<number>(0);
     const [cart, setCart] = useState<Cart>();
-    const [user, setUser] = useState<UserDetails>();
     const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
 
-    // Fetch cart items and user details
     const getCartItems = useCallback(async () => {
         setLoading(true);
-        const user = await getUserDetails();
-        setUser(user);
         const result = await getCart();
         const c = result.data.cart;
         setCart(c);
@@ -36,29 +33,23 @@ const PaymentScreen = React.memo(() => {
         getCartItems();
     }, [getCartItems]);
 
-    // Handle navigation to the next screen
     const handleNext = useCallback(() => {
         if (cart && user) {
             navigation.navigate('Transaction', { cart, user });
         }
     }, [cart, user, navigation]);
 
-    // Handle adding a customer
     const handleAddCustomer = useCallback(() => {
-        navigation.navigate('CustomerList');
+        navigation.navigate('CustomerList', { user });
     }, [navigation]);
 
-    // Handle removing a customer name
     const removeCustomerName = useCallback(async () => {
-        setLoading(true);
         if (cart) {
             await updateCustomer(null);
             await getCartItems();
         }
-        setLoading(false);
     }, [cart, getCartItems]);
 
-    // Memoized total amount
     const formattedTotal = useMemo(() => total.toFixed(2), [total]);
 
     if (isLoading) {
@@ -75,11 +66,11 @@ const PaymentScreen = React.memo(() => {
             <View className="top-3 flex flex-row justify-between px-2">
                 <TouchableOpacity
                     className="bg-gray px-1 pb-2 ml-2"
-                    onPress={() => navigation.navigate('Cart')}
+                    onPress={() => navigation.navigate('Cart', { user })}
                 >
                     <ChevronLeft height={28} width={28} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Payment</Text>
+                <Text className="text-black text-lg font-bold">PAYMENT</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text
@@ -117,7 +108,10 @@ const PaymentScreen = React.memo(() => {
                         </TouchableOpacity>
                     )}
                 </View>
-                <View className="w-full h-[36%] sm:h-[37%] md:h-[37.5%] mb-2 text-right flex flex-column">
+            </View>
+
+            <View className="flex flex-column items-center absolute bottom-0 left-0 right-0" style={{ zIndex: 100 }}>
+                <View className="items-center w-full h-[35%] sm:h-[37%] md:h-[37.5%] mb-2 text-right flex flex-column">
                     <View className="w-full flex flex-row px-4 justify-between">
                         {['Cash', 'G-Cash', 'Bank Transfer'].map((method, index) => (
                             <TouchableOpacity
@@ -141,7 +135,7 @@ const PaymentScreen = React.memo(() => {
                             </TouchableOpacity>
                         ))}
                     </View>
-                    <View className="w-full flex flex-row px-4 justify-between">
+                    <View className="w-full flex flex-row px-4 justify-between mb-2">
                         {['Paypal', 'Cheque', 'Store Credit'].map((method, index) => (
                             <TouchableOpacity
                                 key={index}
@@ -161,15 +155,13 @@ const PaymentScreen = React.memo(() => {
                             </TouchableOpacity>
                         ))}
                     </View>
+                    <TouchableOpacity
+                        className="w-[95%] rounded-xl p-3 items-center bg-[#fe6500]"
+                        onPress={handleNext}
+                    >
+                        <Text className="font-bold text-center text-white text-lg">NEXT</Text>
+                    </TouchableOpacity>
                 </View>
-            </View>
-            <View className="items-center absolute bottom-0 left-0 right-0 pb-2" style={{ zIndex: 100 }}>
-                <TouchableOpacity
-                    className="w-[95%] rounded-xl p-3 items-center bg-[#fe6500]"
-                    onPress={handleNext}
-                >
-                    <Text className="font-bold text-center text-white text-lg">NEXT</Text>
-                </TouchableOpacity>
             </View>
         </View>
     );

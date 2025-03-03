@@ -10,7 +10,7 @@ async def criticalItems(websocket, branchId):
             FROM branchitem bi
             INNER JOIN items i ON i.id = bi.itemid
             WHERE i.criticalValue > bi.quantity
-            AND bi.branchId = {branchId}
+            AND bi.branchId = {branchId} AND i.isManaged = 1
         """
         connection = Tortoise.get_connection('default')
         result = await connection.execute_query_dict(count_query)
@@ -165,8 +165,8 @@ async def dailyTransactionHQ(websocket):
             SELECT 
                 b.name AS branchName, 
                 i.name AS itemName, 
-                SUM(ti.quantity) AS totalSales,
-                ROW_NUMBER() OVER (PARTITION BY b.id ORDER BY SUM(ti.quantity) DESC) AS `rank`
+                SUM(ti.Amount) AS totalSales,
+                ROW_NUMBER() OVER (PARTITION BY b.id ORDER BY SUM(ti.Amount) DESC) AS `rank`
             FROM transactionitems ti
             JOIN items i ON ti.itemId = i.id
             JOIN transactions tr ON ti.transactionId = tr.id
@@ -241,5 +241,22 @@ async def totalSalesHQ(websocket):
         await websocket.send_json(response)
 
         await asyncio.sleep(1)
+
+async def criticalItemsHQ(websocket):
+    while True:
+        count_query = f"""
+            SELECT COUNT(*) as critical_count
+            FROM branchitem bi
+            INNER JOIN items i ON i.id = bi.itemid
+            WHERE i.criticalValue > bi.quantity
+            AND i.isManaged = 1
+        """
+        connection = Tortoise.get_connection('default')
+        result = await connection.execute_query_dict(count_query)
+
+        critical_count = result[0]['critical_count']
+        await websocket.send(str(critical_count)) 
+
+        await asyncio.sleep(5)
 
 

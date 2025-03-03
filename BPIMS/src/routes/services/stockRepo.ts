@@ -1,5 +1,5 @@
 import { CallResultDto } from "../types/CallResultDto";
-import { BranchStockDto, StockInputDto } from "../types/stockType";
+import { BranchStockDto, ItemStock, StockInputDto, StockInputHistoryDto } from "../types/stockType";
 import { getFromBaseApi, postToBaseApi } from "../utils/apiService";
 
 export async function getBranchStocks(categoryId: number, page: number, search: string, branchId: number) {
@@ -11,5 +11,9 @@ export async function createStockInput(stockInput: StockInputDto) {
 }
 
 export async function getStockHistory(branchItemId: number) {
-    return await getFromBaseApi<CallResultDto<StockInputDto[]>>('getStockHistory', { branchItemId });
+    return await getFromBaseApi<CallResultDto<StockInputHistoryDto[]>>('getStockHistory', { branchItemId });
+}
+
+export async function getStocksMonitor(categoryId: number, page: number, search: string) {
+    return await getFromBaseApi<CallResultDto<ItemStock[]>>('getStocksMonitor', { categoryId, page, search });
 }

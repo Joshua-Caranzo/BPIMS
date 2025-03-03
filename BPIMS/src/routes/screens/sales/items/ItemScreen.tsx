@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, Text, Image, Alert, TouchableOpacity, Dimensions, TextInput, Keyboard, ActivityIndicator } from 'react-native';
-import { Cart, CategoryDto, ItemDto } from '../../../types/salesType';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, Alert, TouchableOpacity, Dimensions, TextInput, Keyboard, ActivityIndicator, BackHandler } from 'react-native';
+import { CartItems, CategoryDto, ItemDto } from '../../../types/salesType';
 import { addItemToCart, getCart, getCategories, getProducts } from '../../../services/salesRepo';
 import { ChevronRight, Search, Menu, Slash, ChevronLeft } from "react-native-feather";
 import { getUserDetails } from '../../../utils/auth';
@@ -12,6 +12,8 @@ import { ItemStackParamList } from '../../../navigation/navigation';
 import { OptimizedFlatList } from 'react-native-optimized-flatlist';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import { debounce } from 'lodash';
+import FastImage from 'react-native-fast-image';
+import { Animated, Easing } from 'react-native';
 
 const ItemScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -32,15 +34,32 @@ const ItemScreen = () => {
     const [quantity, setQuantity] = useState<string>("0.00");
     const [selectedItem, setSelectedItem] = useState<ItemDto>();
     const [buttonLoading, setButtonLoading] = useState<boolean>(false);
+    const [message, setMessage] = useState<string | null>(null);
+    const [cartItems, setCartItems] = useState<CartItems[]>([]);
+
+    const cartScale = useRef(new Animated.Value(1)).current;
 
     const inputRef = useRef<TextInput>(null);
 
     const screenWidth = Dimensions.get('window').width;
     const itemWidth = screenWidth / 3 - 10;
+    const screenHeight = Dimensions.get('window').height;
+    const [listHeight, setListHeight] = useState(screenHeight);
 
     const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
 
-    const toggleSidebar = () => setSidebarVisible(prev => !prev);
+    const toggleSidebar = useCallback(() => setSidebarVisible(prev => !prev), []);
+
+    useEffect(() => {
+        const backAction = () => {
+            BackHandler.exitApp();
+            return true;
+        };
+
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+        return () => backHandler.remove();
+    }, []);
 
     useEffect(() => {
         const getCategoryList = async () => {
@@ -61,14 +80,10 @@ const ItemScreen = () => {
         useCallback(() => {
             getUserAndCart();
             getItems(activeCategory, page, search);
-        }, [])
+        }, [activeCategory, page, search])
     );
 
-    useEffect(() => {
-        getItems(activeCategory, page, search);
-    }, [activeCategory, page, search]);
-
-    const getItems = async (categoryId: number, page: number, search: string) => {
+    const getItems = useCallback(async (categoryId: number, page: number, search: string) => {
         if (activeCategory !== lastCategory) {
             setProducts([]);
         }
@@ -78,7 +93,20 @@ const ItemScreen = () => {
         setUser(userResponse)
         const response = await getProducts(categoryId, page, search.trim(), Number(userResponse?.branchId));
         if (response.isSuccess) {
-            const newProducts = response.data;
+            let newProducts = response.data;
+            const cartResponse = await getCart();
+            const cartItems = cartResponse.data.cartItems;
+            setCartItems(cartItems)
+            newProducts = newProducts.map(product => {
+                const cartItem = cartItems.find((item) => item.itemId === product.id);
+                if (cartItem) {
+                    return {
+                        ...product,
+                        quantity: product.quantity - cartItem.quantity,
+                    };
+                }
+                return product;
+            });
             setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
             if (newProducts.length === 0 || products.length + newProducts.length >= (response.totalCount || 0)) {
                 setHasMoreData(false);
@@ -90,31 +118,36 @@ const ItemScreen = () => {
         }
         setLoading(false);
         setLoadingMore(false);
-    };
+    }, [activeCategory, lastCategory, loadingMore, products.length]);
 
-    const loadMoreCategories = () => {
+    const loadMoreCategories = useCallback(() => {
         if (!loading && !loadingMore && hasMoreData) {
             setLastCategory(activeCategory);
             setLoadingMore(true);
             setPage(prevPage => prevPage + 1);
         }
-    };
+    }, [loading, loadingMore, hasMoreData, activeCategory]);
 
-    const getUserAndCart = async () => {
+    const getUserAndCart = useCallback(async () => {
         const result = await getCart();
         setTotalCartItems(result.totalCount ?? 0);
         setTotalPrice(parseFloat(result.data.cart.subTotal.toString()));
-    };
+    }, []);
 
     const debouncedAddToCart = useCallback(debounce(async (item: ItemDto) => {
-        if (item.sellbyUnit === false) {
+        if (item.sellByUnit === false) {
             setSelectedItem(item);
-            setInputMode(true);
+            setTimeout(() => setInputMode(true), 0);
         } else {
             const updatedItem = {
                 ...item,
                 quantity: item.quantity > 0 ? item.quantity - 1 : 0,
             };
+            setProducts(prev =>
+                prev.map(i =>
+                    i.id === updatedItem.id ? { ...i, quantity: updatedItem.quantity } : i
+                )
+            );
 
             setTotalCartItems(prev => prev + 1);
             setTotalPrice(prev => prev + parseFloat(updatedItem.price.toString()));
@@ -122,38 +155,81 @@ const ItemScreen = () => {
                 await addItemToCart(updatedItem.id, 1);
             } catch (error) {
                 setProducts(prev =>
-                    prev.map(i => (i.id === updatedItem.id ? updatedItem : i))
+                    prev.map(i =>
+                        i.id === item.id ? { ...i, quantity: item.quantity } : i
+                    )
                 );
                 setTotalCartItems(prev => prev - 1);
                 setTotalPrice(prev => prev - parseFloat(updatedItem.price.toString()));
             }
         }
-    }, 300), []);
+    },), []);
 
-    async function addToCartFaction() {
-        setButtonLoading(true)
+    useEffect(() => {
+        if (totalCartItems > 0) {
+            Animated.sequence([
+                Animated.timing(cartScale, {
+                    toValue: 1.1,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(cartScale, {
+                    toValue: 1,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [totalCartItems, cartScale]);
+
+    const addToCartFaction = useCallback(async () => {
+        setButtonLoading(true);
+
         if (selectedItem) {
+            const prevTotalCartItems = totalCartItems;
+            const prevTotalPrice = totalPrice;
+            const prevProducts = products;
+
             const updatedItem = {
                 ...selectedItem,
                 quantity: selectedItem.quantity > 0 ? selectedItem.quantity - Number(quantity) : 0,
             };
+
+            setProducts(prev =>
+                prev.map(i =>
+                    i.id === updatedItem.id ? { ...i, quantity: updatedItem.quantity } : i
+                )
+            );
+
             const toAdd = updatedItem.price * Number(quantity);
-            setTotalCartItems(prev => prev + 1);
-            setTotalPrice(prev => prev + parseFloat(toAdd.toString()));
-            try {
-                await addItemToCart(selectedItem.id, Number(quantity));
-                setSelectedItem(undefined);
-                setQuantity("0.00")
-                setInputMode(false)
-                await getUserAndCart();
-            } catch (error) {
-                setProducts(prev => prev.map(i => (i.id === selectedItem.id ? selectedItem : i)));
-                setTotalCartItems(prev => prev - 1);
-                setTotalPrice(prev => prev - parseFloat(selectedItem.price.toString()));
+            if (!cartItems.some(item => item.itemId === updatedItem.id)) {
+                setTotalCartItems(prev => prev + 1);
             }
+
+            setTotalPrice((prev) => prev + parseFloat(toAdd.toString()));
+
+            const debouncedAddToCart = debounce(async () => {
+                try {
+                    await addItemToCart(selectedItem.id, Number(quantity));
+                    setSelectedItem(undefined);
+                    setQuantity("0.00");
+                    setInputMode(false);
+                    await getUserAndCart();
+                } catch (error) {
+                    setProducts(prevProducts);
+                    setTotalCartItems(prevTotalCartItems);
+                    setTotalPrice(prevTotalPrice);
+                    Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+                } finally {
+                    setButtonLoading(false);
+                }
+            },);
+
+            debouncedAddToCart();
+        } else {
+            setButtonLoading(false);
         }
-        setButtonLoading(false);
-    }
+    }, [selectedItem, quantity, totalCartItems, totalPrice, products, getUserAndCart]);
 
     const handleCategoryClick = useCallback((id: number) => {
         setLastCategory(activeCategory);
@@ -163,188 +239,303 @@ const ItemScreen = () => {
         setPage(1);
     }, [activeCategory]);
 
-    const handleSearchClick = () => {
+    const handleSearchClick = useCallback(() => {
         inputRef.current?.focus();
         setPage(1);
-    };
+    }, []);
 
-    const handleCartClick = () => {
+    const handleCartClick = useCallback(() => {
         setButtonLoading(true)
-        navigation.navigate('Cart');
-        setButtonLoading(false)
-    };
+        if (user) {
+            navigation.navigate('Cart', { user: user });
+            setButtonLoading(false)
+        }
+    }, [navigation, user]);
 
-    const ProductItem = React.memo(({ item }: { item: ItemDto }) => (
-        <TouchableOpacity
-            className={`m-1 ${item.quantity < 1 ? 'opacity-50' : 'opacity-100'}`}
-            style={{ width: itemWidth }}
-            onPress={() => debouncedAddToCart(item)}
-            disabled={item.quantity < 1}
-        >
-            <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
-                {item.imagePath ? (
-                    <Image source={{ uri: item.imagePath }} className="w-full h-full object-cover" />
-                ) : (
-                    <Text className="text-white text-xs text-center">No Image</Text>
-                )}
-                {item.quantity < 1 && (
-                    <View className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 justify-center items-center">
-                        <Text className="text-red-500 text-lg font-bold">Out of Stock</Text>
-                        <Slash width={20} height={20} color="red" />
+    const ProductItem = React.memo(({ item, index }: { item: ItemDto; index: number }) => {
+        const animatedValue = useRef(new Animated.Value(0)).current;
+        const [isAnimating, setIsAnimating] = useState(false);
+
+        const handlePress = useCallback(() => {
+            debouncedAddToCart(item);
+            if (item.sellByUnit) {
+                setIsAnimating(true);
+                animatedValue.setValue(0);
+
+                Animated.timing(animatedValue, {
+                    toValue: 1,
+                    duration: 500,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }).start(() => {
+                    setIsAnimating(false);
+                });
+            }
+        }, [debouncedAddToCart, item, animatedValue]);
+
+        const column = index % 3;
+        const translateX = animatedValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [
+                0,
+                column === 0 ? 50 : column === 2 ? -50 : 0,
+            ],
+        });
+
+        const translateY = animatedValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [
+                0,
+                listHeight
+            ],
+        });
+
+        const scale = animatedValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0.01],
+        });
+
+        return (
+            <View>
+                <TouchableOpacity
+                    className={`m-1 ${Number(item.quantity) <= 0.00 ? 'opacity-50' : 'opacity-100'}`}
+                    style={{ width: itemWidth }}
+                    onPress={handlePress}
+                    disabled={Number(item.quantity) <= 0.00}
+                >
+                    <View className='z-[10]'>
+                        <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
+                            {item.imagePath && item.imageUrl ? (
+                                <FastImage
+                                    source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                                    className="w-full h-full object-cover"
+                                    resizeMode={FastImage.resizeMode.cover}
+                                />
+                            ) : (
+                                <Text className="text-white text-xs text-center">No Image</Text>
+                            )}
+                            {(Number(item.quantity) <= 0.00) && (
+                                <View className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 justify-center items-center">
+                                    <Text className="text-red-500 text-lg font-bold">Out of Stock</Text>
+                                    <Slash width={20} height={20} color="red" />
+                                </View>
+                            )}
+                        </View>
+
+                        <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
+                            <Text className="text-xs font-bold" numberOfLines={2} ellipsizeMode="tail">
+                                {item.name.toUpperCase()}
+                            </Text>
+                            <Text className="text-xs font-bold mb-1" numberOfLines={1}>
+                                ₱ {item.price}
+                            </Text>
+                        </View>
                     </View>
+                </TouchableOpacity>
+                {isAnimating && (
+                    <Animated.View
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: itemWidth,
+                            transform: [{ translateX }, { translateY }, { scale }],
+                            zIndex: 1000
+                        }}
+                    >
+                        <View className="z-auto bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center">
+                            {item.imagePath && item.imageUrl ? (
+                                <FastImage
+                                    source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                                    className="w-full h-full object-cover"
+                                    resizeMode={FastImage.resizeMode.cover}
+                                />
+                            ) : (
+                                <Text className="text-white text-xs text-center">No Image</Text>
+                            )}
+                        </View>
+
+                        <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
+                            <Text className="text-xs font-bold" numberOfLines={2} ellipsizeMode="tail">
+                                {item.name.toUpperCase()}
+                            </Text>
+                            <Text className="text-xs font-bold mb-1" numberOfLines={1}>
+                                ₱ {item.price}
+                            </Text>
+                        </View>
+                    </Animated.View>
                 )}
             </View>
+        );
+    });
 
-            <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
-                <Text className="text-xs font-bold" numberOfLines={2} ellipsizeMode="tail">{item.name.toUpperCase()}</Text>
-                <Text className="text-xs font-bold mb-1" numberOfLines={1}>₱ {item.price}</Text>
-            </View>
-        </TouchableOpacity>
-    ));
-
-    const renderItem = useCallback(({ item }: { item: ItemDto }) => <ProductItem item={item} />, []);
+    const renderItem = useCallback(({ item, index }: { item: ItemDto, index: number }) => <ProductItem item={item} index={index} />, []);
     const keyExtractor = useCallback((item: ItemDto) => item.id.toString(), []);
 
-    const handleKeyPress = (key: string) => {
-        let current = quantity.replace('.', '');
-        current += key;
-        if (current.length > 4) return;
-        const formatted = (parseInt(current) / 100).toFixed(2);
-        setQuantity(formatted);
-    };
+    const handleKeyPress = useCallback((key: string) => {
+        if (selectedItem) {
+            let current = quantity.replace('.', '');
+            current += key;
+            const formatted = (parseInt(current) / 100).toFixed(2);
+            if (Number(formatted) <= selectedItem?.quantity) {
+                setQuantity(formatted);
+                setMessage(null)
+            }
+            else {
+                setMessage(`Quantity exceeds available stock. Available stock: ${Number(selectedItem.quantity).toFixed(2)}`);
+            }
+        }
+    }, [selectedItem, quantity]);
 
-    const handleBackspace = () => {
+    const handleBackspace = useCallback(() => {
+        setMessage(null)
         let current = quantity.replace('.', '');
         current = current.slice(0, -1) || '0';
         const formatted = (parseInt(current) / 100).toFixed(2);
         setQuantity(formatted);
-    };
+    }, [quantity]);
 
     return (
         <View style={{ flex: 1 }}>
-            {isSidebarVisible && (
+            {user && (
                 <Sidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            {isInputMode ? (
-                <View style={{ flex: 1 }}>
-                    <View className='top-3 flex flex-row px-2'>
-                        <TouchableOpacity
-                            className="bg-gray px-1 pb-2 ml-2"
-                            onPress={() => setInputMode(false)}
-                        >
-                            <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                        </TouchableOpacity>
-                        <Text className="text-black text-lg font-bold ml-3">Please Enter Quantity</Text>
-                    </View>
-                    <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
-                    <View className="items-center mt-4">
-                        <View className="flex flex-column items-center">
-                            <Text className="text-lg font-bold text-gray-600 px-3 mt-4">Enter Quantity Sold</Text>
-                            <View className="flex flex-row items-center mt-6 w-48 border-b-2 border-[#fe6500] px-4 justify-center">
-                                <Text className="text-center text-3xl text-[#fe6500] tracking-widest">
-                                    {quantity}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                    <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
-                        <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
-                        <TouchableOpacity disabled={buttonLoading == true} onPress={addToCartFaction} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${quantity === "0.00" ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
-                        >
-                            <View className="flex-1 flex flex-row items-center justify-center">
-                                <Text className={`text-lg text-center font-bold ${quantity === "0.00" ? 'text-[#fe6500]' : 'text-white'}`}>
-                                    Send to cart
-                                </Text>
-                                {buttonLoading && (
-                                    <ActivityIndicator color={"white"} size={'small'} />
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ) : (
-                <View style={{ flex: 1 }}>
-                    <View className='top-3 flex flex-row justify-between mb-4 px-2'>
-                        <TouchableOpacity
-                            className="bg-gray mt-1 ml-2"
-                            onPress={toggleSidebar}
-                            style={{ zIndex: 999 }}
-                        >
-                            <Menu width={20} height={20} color="#fe6500" />
-                        </TouchableOpacity>
-                        <View className=" mr-1 flex-row items-center w-[60%] sm:w-[75%] md:w-[80%] rounded-full border border-[#fe6500]">
-                            <TextInput
-                                className="flex-1 h-6 px-2 py-1 text-black"
-                                placeholder="Search..."
-                                placeholderTextColor="#8a8a8a"
-                                value={search}
-                                onChangeText={(text) => {
-                                    setLoading(true)
-                                    setSearch(text);
-                                    setPage(1);
-                                }}
-                                onFocus={() => Keyboard.isVisible()}
-                                ref={inputRef}
-                                selectionColor="orange"
-                            />
-                            <TouchableOpacity className='mr-2' onPress={handleSearchClick} >
-                                <Search width={15} height={15} color="black" />
-                            </TouchableOpacity>
 
+            <View style={{ flex: 1, display: isInputMode ? 'flex' : 'none' }}>
+                <View className='top-3 flex flex-row px-2'>
+                    <TouchableOpacity
+                        className="bg-gray px-1 pb-2 ml-2"
+                        onPress={() => setInputMode(false)}
+                    >
+                        <ChevronLeft height={28} width={28} color={"#fe6500"} />
+                    </TouchableOpacity>
+                    <Text className="text-black text-lg font-bold ml-3">Please Enter Quantity</Text>
+                </View>
+                <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
+                <View className="items-center mt-4">
+                    <View className="flex flex-column items-center">
+                        <Text className="text-lg font-bold text-gray-600 px-3 mt-4">Enter Quantity Sold</Text>
+                        <View className="flex flex-row items-center mt-6 w-48 border-b-2 border-[#fe6500] px-4 justify-center">
+                            <Text className="text-center text-3xl text-[#fe6500] tracking-widest">
+                                {quantity}
+                            </Text>
                         </View>
-                        <View className=" items-center"
-                        >
-                            <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                                <Text
-                                    className="text-white"
-                                    style={{
-                                        fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12,
-                                    }}
-                                >
-                                    {user?.name ? user.name.split(" ")[0].toUpperCase() : ""}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                    <View className="justify-center items-center bg-gray relative mt-1">
-                        {loadingCategory ? (
-                            <ActivityIndicator size="small" color="#fe6500" />
-                        ) : (
-                            <View className="w-[90%] flex-row justify-between pr-4 pl-4">
-                                {categories.map((category) => (
-                                    <TouchableOpacity
-                                        onPress={() => handleCategoryClick(category.id)}
-                                        key={category.id}
-                                        className="rounded-full mx-1"
-                                    >
-                                        <Text className={`${activeCategory === category.id ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium`}>
-                                            {category.name.toUpperCase()}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                        <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
-                    </View>
-                    <View className="flex-1">
-                        {loading ? (
-                            <ActivityIndicator size="large" color="#fe6500" />
-                        ) : (
-                            <OptimizedFlatList
-                                data={products}
-                                renderItem={renderItem}
-                                keyExtractor={keyExtractor}
-                                numColumns={3}
-                                contentContainerStyle={{ paddingBottom: 20 }}
-                                onEndReached={loadMoreCategories}
-                                onEndReachedThreshold={0.5}
-                                ListFooterComponent={loadingMore && <ActivityIndicator size="small" color="#fe6500" />}
-                            />
-                        )
+                        {message !== null && (
+                            <Text className="text-[10px] font-bold text-red-500">{message}</Text>)
                         }
                     </View>
-                    {!loading && products.length !== 0 && (
-                        <View className="items-center pb-3 pt-2 bg-white">
+                </View>
+                <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
+                    <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
+                    <TouchableOpacity disabled={buttonLoading == true} onPress={addToCartFaction} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${quantity === "0.00" ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
+                    >
+                        <View className="flex-1 flex flex-row items-center justify-center">
+                            <Text className={`text-lg text-center font-bold ${quantity === "0.00" ? 'text-[#fe6500]' : 'text-white'}`}>
+                                Send to cart
+                            </Text>
+                            {buttonLoading && (
+                                <ActivityIndicator color={"white"} size={'small'} />
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <View style={{ flex: 1, display: isInputMode ? 'none' : 'flex' }}>
+                <View className='top-3 flex flex-row justify-between mb-4 px-2'>
+                    <TouchableOpacity
+                        className="bg-gray mt-1 ml-2"
+                        onPress={toggleSidebar}
+                    >
+                        <Menu width={20} height={20} color="#fe6500" />
+                    </TouchableOpacity>
+                    <View className=" mr-1 flex-row items-center w-[60%] sm:w-[75%] md:w-[80%] rounded-full border border-[#fe6500]">
+                        <TextInput
+                            className="flex-1 h-6 px-2 py-1 text-black"
+                            placeholder="Search..."
+                            placeholderTextColor="#8a8a8a"
+                            value={search}
+                            onChangeText={(text) => {
+                                setLoading(true)
+                                setSearch(text);
+                                setPage(1);
+                            }}
+                            onFocus={() => Keyboard.isVisible()}
+                            ref={inputRef}
+                            selectionColor="orange"
+                        />
+                        <TouchableOpacity className='mr-2' onPress={handleSearchClick} >
+                            <Search width={15} height={15} color="black" />
+                        </TouchableOpacity>
+
+                    </View>
+                    <View className=" items-center"
+                    >
+                        <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
+                            <Text
+                                className="text-white"
+                                style={{
+                                    fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12,
+                                }}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
+                                {user?.name
+                                    ? user.name.split(" ")[0].length > 15
+                                        ? `${user.name.split(" ")[0].substring(0, 10)}...`
+                                        : user.name.split(" ")[0].toUpperCase()
+                                    : ""}
+                            </Text>
+                        </View>
+
+                    </View>
+                </View>
+                <View className="justify-center items-center bg-gray relative mt-1">
+                    {loadingCategory ? (
+                        <ActivityIndicator size="small" color="#fe6500" />
+                    ) : (
+                        <View className="w-[90%] flex-row justify-between pr-4 pl-4">
+                            {categories.map((category) => (
+                                <TouchableOpacity
+                                    onPress={() => handleCategoryClick(category.id)}
+                                    key={category.id}
+                                    className="rounded-full mx-1"
+                                >
+                                    <Text className={`${activeCategory === category.id ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium`}>
+                                        {category.name.toUpperCase()}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                    <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
+                </View>
+                <View className="flex-1 items-center">
+                    {loading ? (
+                        <View className="py-2">
+                            <ActivityIndicator size="small" color="#fe6500" />
+                            <Text className="text-center text-[#fe6500]">Getting Items...</Text>
+                        </View>
+                    ) : (
+                        <OptimizedFlatList
+                            data={products}
+                            onLayout={(event: any) => setListHeight(event.nativeEvent.layout.height)}
+                            renderItem={renderItem}
+                            keyExtractor={keyExtractor}
+                            numColumns={3}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            onEndReached={loadMoreCategories}
+                            onEndReachedThreshold={0.5}
+                            showsVerticalScrollIndicator={false}
+                            ListFooterComponent={loadingMore && <ActivityIndicator size="small" color="#fe6500" />}
+                        />
+                    )
+                    }
+                </View>
+
+                {!loading && products.length !== 0 && (
+                    <View className="items-center pb-3 pt-2 bg-white">
+                        <Animated.View style={{ transform: [{ scale: cartScale }] }}>
                             <TouchableOpacity
                                 onPress={handleCartClick}
                                 className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${totalCartItems === 0 ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
@@ -365,11 +556,11 @@ const ItemScreen = () => {
                                 )}
 
                             </TouchableOpacity>
-                        </View>
-                    )}
-                </View>
-            )
-            }
+                        </Animated.View>
+                    </View>
+                )}
+            </View>
+
         </View >
     );
 };

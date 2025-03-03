@@ -1,6 +1,6 @@
 from models import Customer, Branch, Transaction, Cart
-from utils import create_response
-from config import CUSTOMER_IMAGES
+from utils import create_response, sanitize_filename
+from config import CUSTOMER_IMAGES, BASE_URL
 import os
 from tortoise.queryset import Q 
 
@@ -20,6 +20,7 @@ async def getCustomerList(branchId = None, search = ""):
 
 async def getCustomer(id):
     if id:
+        base_url = BASE_URL
         customer = await Customer.get_or_none(id=id)
         
         if customer:
@@ -46,7 +47,8 @@ async def getCustomer(id):
                 'totalOrderAmount': customer.totalOrderAmount,
                 'branchId': customer.branchId,
                 'branch': branch.name if branch else None,
-                'fileName': customer.fileName
+                'fileName': customer.fileName,
+                "imageUrl": f"{base_url}/getCustomerImage?fileName={customer.fileName}" if customer.fileName else None,
             }
 
             request = {
@@ -89,7 +91,8 @@ async def saveCustomer(data, file):
         existing_customer.contactNumber1 = contactNumber1
         existing_customer.contactNumber2 = contactNumber2
         existing_customer.name = name
-        existing_customer.branchId = branchId
+        if branchId:
+            existing_customer.branchId = branchId
         await existing_customer.save()
 
         message = "Customer updated successfully."
@@ -100,7 +103,8 @@ async def saveCustomer(data, file):
                 os.makedirs(user_images_dir)
             
             file_extension = os.path.splitext(file.filename)[1]
-            new_file_name = f"{name}_{customerId}{file_extension}"
+            sanitized_name = sanitize_filename(name)
+            new_file_name = f"{sanitized_name}_{customerId}{file_extension}"
             file_path = os.path.join(user_images_dir, new_file_name)
             
             with open(file_path, 'wb') as f:

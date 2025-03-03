@@ -11,30 +11,30 @@ async def login_user(email, encryptedPassword):
     user = await User.filter(email=email).first()
     if not user:
         return create_response(False, 'There was an issue with your login. Please try again.'), 200
-
+    
     if encryptedPassword == user.encryptedPassword:
-        branch = await Branch.filter(id=user.branchId).first()
-        department = await Department.filter(id=user.departmentId).first()
 
-        if branch and department:
-            user_details = {
-                'name': user.name,
-                'branchName': branch.name,
-                'branchId': branch.id,
-                'departmentId': department.id,
-                'departmentName': department.name,
-                'hasHeadAccess': user.hasHeadAccess
-            }
-            cart = await Cart.filter(userId=user.id).first()
-            cart_id = cart.id if cart else None
-            payload = {
-                "sub": str(user.id),
-                "cartId": str(cart_id)
-            }
+        branch = await Branch.filter(id=user.branchId).first() if user.branchId else None
+        department = await Department.filter(id=user.departmentId).first() if user.departmentId else None
+        cart = await Cart.filter(userId=user.id).first() if user.id else None
+        user_details = {
+            'name': user.name,
+            'branchName': branch.name if branch else None,
+            'branchId': branch.id if branch else None,
+            'departmentId': department.id if department else None,
+            'departmentName': department.name if department else None,
+            'hasHeadAccess': user.hasHeadAccess,
+            'cartId': cart.id if cart else None
+        }
 
-            token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-            user_details["token"] = token
-            return create_response(True, 'Logged In Successfully', user_details), 200
+        payload = {
+            "sub": str(user.id),
+            "cartId": str(user_details["cartId"]) if user_details["cartId"] else None
+        }
+
+        token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+        user_details["token"] = token
+        return create_response(True, 'Logged In Successfully', user_details), 200
 
     return create_response(False, 'There was an issue with your login. Please try again.'), 200
 
@@ -97,7 +97,8 @@ async def getUserById(userId):
         "branchId": item['branchId'],
         "hasHeadAccess": bool(item['hasHeadAccess']),
         "deptName": item['deptName'],
-        "branchName": item['branchName']
+        "branchName": item['branchName'],
+        "password": item['password']
     }
 
     return create_response(True, "User retrieved successfully.", user, None), 200
@@ -114,15 +115,14 @@ async def addUser(user):
         branchId=user['branchId'],
         hasHeadAccess = user['hasHeadAccess'] if user['hasHeadAccess'] is not None else False,
         encryptedPassword=hashed_password,
-        email=user['email']
+        email=user['email'],
+        password = user['password']
     )
 
     return create_response(True, "User added successfully.", user.id), 201
 
 async def editUser(user):
     existing_user = await User.get(id=user['id'])
-    print (user)
-    print (existing_user)
     if '@gmail.com' not in user['email']:
         return create_response(False, "Invalid email. Only Gmail accounts are allowed."), 400
     
@@ -139,6 +139,9 @@ async def editUser(user):
         existing_user.hasHeadAccess = user['hasHeadAccess']
     if 'email' in user and user['email'] is not None:
         existing_user.email = user['email']
+    if 'password' in user and user['password'] is not None:
+        existing_user.password = user['password']
+        existing_user.encryptedPassword = hash_password_md5(user['password'])
 
     await existing_user.save()
 

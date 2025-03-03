@@ -1,18 +1,17 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Image, Alert, TouchableOpacity, Dimensions, TextInput, Keyboard, ActivityIndicator } from 'react-native';
-import { CategoryDto, ItemDto } from '../../../types/salesType';
-import { getCategories } from '../../../services/salesRepo';
-import { Search, Menu } from "react-native-feather";
+import { View, Text, Alert, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { CategoryDto } from '../../../types/salesType';
+import { Search, Menu, PlusCircle } from "react-native-feather";
 import { getUserDetails } from '../../../utils/auth';
 import { UserDetails } from '../../../types/userType';
-import Sidebar from '../../../../components/Sidebar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ItemStackParamList } from '../../../navigation/navigation';
+import { ItemsHQParamList } from '../../../navigation/navigation';
 import { OptimizedFlatList } from 'react-native-optimized-flatlist';
-import { getProductsHQ } from '../../../services/itemsHQRepo';
+import { getCategoriesHQ, getProductsHQ } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
 import HQSidebar from '../../../../components/HQSidebar';
+import FastImage from 'react-native-fast-image';
 
 const ItemListScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -28,13 +27,30 @@ const ItemListScreen = () => {
     const [user, setUser] = useState<UserDetails>();
     const [isSidebarVisible, setSidebarVisible] = useState(false);
     const inputRef = useRef<TextInput>(null);
+    const navigation = useNavigation<NativeStackNavigationProp<ItemsHQParamList>>();
+
+    const newItem: ItemHQDto = {
+        id: 0,
+        name: "",
+        categoryId: 1,
+        price: 0,
+        cost: 0,
+        isManaged: false,
+        imagePath: null,
+        sellbyUnit: false,
+        moq: 0,
+        categoryName: "",
+        unitOfMeasure: "",
+        criticalValue: 0,
+        imageUrl: null
+    };
 
     const toggleSidebar = () => setSidebarVisible(prev => !prev);
 
     useEffect(() => {
         const getCategoryList = async () => {
             setLoadingCategory(true);
-            const response = await getCategories();
+            const response = await getCategoriesHQ();
             if (response.isSuccess) {
                 setCategories(response.data);
             } else {
@@ -60,21 +76,21 @@ const ItemListScreen = () => {
         if (activeCategory !== lastCategory) {
             setProducts([]);
         }
-        if (!loadingMore)
-            setLoading(true);
+
+        if (!loadingMore) setLoading(true);
         const userResponse = await getUserDetails();
-        setUser(userResponse)
+        setUser(userResponse);
+
         const response = await getProductsHQ(categoryId, page, search.trim());
+
         if (response.isSuccess) {
-            const newProducts = response.data;
+            let newProducts = response.data;
+
             setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
-            if (newProducts.length === 0 || products.length + newProducts.length >= (response.totalCount || 0)) {
-                setHasMoreData(false);
-            } else {
-                setHasMoreData(true);
-            }
+
+            setHasMoreData(newProducts.length > 0 && products.length + newProducts.length < (response.totalCount || 0));
         } else {
-            setProducts([])
+            setProducts([]);
         }
         setLoading(false);
         setLoadingMore(false);
@@ -104,11 +120,16 @@ const ItemListScreen = () => {
     const ProductItem = React.memo(({ item }: { item: ItemHQDto }) => (
         <TouchableOpacity
             className={`m-1 w-full pl-1 pr-3`}
+            onPress={() => navigation.navigate('ItemView', { item: item })}
         >
             <View className="w-full items-center border-b border-gray-500 w-full pl-1 pr-2 justify-between flex flex-row">
                 <View className=" w-[20%] bg-yellow-500 justify-center items-center h-10 w-16 mb-1 rounded-lg">
-                    {item.imagePath ? (
-                        <Image source={{ uri: item.imagePath }} className="w-full h-full object-cover" />
+                    {item.imagePath && item.imageUrl ? (
+                        <FastImage
+                            source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                            style={{ width: 64, height: 40, borderRadius: 8 }}
+                            resizeMode={FastImage.resizeMode.cover}
+                        />
                     ) : (
                         <Text className="text-white text-xs text-center">No Image</Text>
                     )}
@@ -119,53 +140,29 @@ const ItemListScreen = () => {
         </TouchableOpacity>
     ));
 
-    const renderItem = useCallback(({ item }: { item: ItemDto }) => <ProductItem item={item} />, []);
-    const keyExtractor = useCallback((item: ItemDto) => item.id.toString(), []);
+    const renderItem = useCallback(({ item }: { item: ItemHQDto }) => <ProductItem item={item} />, []);
+    const keyExtractor = useCallback((item: ItemHQDto) => item.id.toString(), []);
 
     return (
-        <View style={{ flex: 1 }}>
+        <View className='flex flex-1'>
             {isSidebarVisible && (
                 <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
 
-            <View className='top-3 flex flex-row justify-between mb-4 px-2'>
-                <TouchableOpacity
-                    className="bg-gray mt-1 ml-2"
-                    onPress={toggleSidebar}
-                    style={{ zIndex: 999 }}
-                >
+            <View className="top-3 flex flex-row justify-between px-2 mb-5">
+                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <View className=" mr-1 flex-row items-center w-[60%] sm:w-[75%] md:w-[80%] rounded-full border border-[#fe6500]">
-                    <TextInput
-                        className="flex-1 h-6 px-2 py-1 text-black"
-                        placeholder="Search..."
-                        placeholderTextColor="#8a8a8a"
-                        value={search}
-                        onChangeText={(text) => {
-                            setLoading(true)
-                            setSearch(text);
-                            setPage(1);
-                        }}
-                        onFocus={() => Keyboard.isVisible()}
-                        ref={inputRef}
-                        selectionColor="orange"
-                    />
-                    <TouchableOpacity className='mr-2' onPress={handleSearchClick} >
-                        <Search width={15} height={15} color="black" />
-                    </TouchableOpacity>
-
-                </View>
-                <View className=" items-center"
-                >
+                <Text className="text-black text-lg font-bold">ITEMS DATA</Text>
+                <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text
                             className="text-white"
                             style={{
-                                fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12,
+                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
                             }}
                         >
-                            {user?.name ? user.name.split(" ")[0].toUpperCase() : ""}
+                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
                         </Text>
                     </View>
                 </View>
@@ -188,26 +185,55 @@ const ItemListScreen = () => {
                         ))}
                     </View>
                 )}
-                <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
+                <View className="w-full h-[2px] bg-gray-500 mt-1"></View>
             </View>
-            <View className="flex-1 w-full">
+            <View className="flex-1 items-center">
+                <View className="flex flex-row w-full bg-gray-300 py-1 px-3 justify-between items-center">
+                    <View className="flex-row items-center rounded-md px-2 flex-1">
+                        <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
+                            <Search width={20} height={20} color="black" />
+                        </TouchableOpacity>
+                        <TextInput
+                            className="flex-1 h-8 text-black p-1"
+                            placeholder="Search items..."
+                            placeholderTextColor="#8a8a8a"
+                            value={search}
+                            onChangeText={(text) => {
+                                setSearch(text);
+                                setLoading(true)
+                                setPage(1);
+                            }}
+                            ref={inputRef}
+                            selectionColor="orange"
+                            returnKeyType="search"
+                        />
+                    </View>
+                    <TouchableOpacity className="mr-2" onPress={() => navigation.navigate('ItemView', { item: newItem })}>
+                        <PlusCircle width={18} height={18} color="#fe6500" />
+                    </TouchableOpacity>
+                </View>
                 {loading ? (
-                    <ActivityIndicator size="large" color="#fe6500" />
+                    <View className="py-2">
+                        <ActivityIndicator size="small" color="#fe6500" />
+                        <Text className="text-[#fe6500] mt-2">Loading Items...</Text>
+                    </View>
                 ) : (
-                    <OptimizedFlatList
-                        data={products}
-                        renderItem={renderItem}
-                        keyExtractor={keyExtractor}
-                        numColumns={1}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                        onEndReached={loadMoreCategories}
-                        onEndReachedThreshold={0.5}
-                        ListFooterComponent={loadingMore && <ActivityIndicator size="small" color="#fe6500" />}
-                    />
-                )
-                }
+                    <View className='w-full px-1'>
+                        <OptimizedFlatList
+                            data={products}
+                            renderItem={renderItem}
+                            showsVerticalScrollIndicator={false}
+                            keyExtractor={keyExtractor}
+                            numColumns={1}
+                            contentContainerStyle={{ paddingBottom: 20 }}
+                            onEndReached={loadMoreCategories}
+                            onEndReachedThreshold={0.5}
+                            ListFooterComponent={loadingMore && <ActivityIndicator size="small" color="#fe6500" />}
+                        />
+                    </View>
+                )}
             </View>
-        </View >
+        </View>
     );
 };
 export default ItemListScreen;

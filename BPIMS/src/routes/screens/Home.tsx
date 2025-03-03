@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { User, Lock } from 'react-native-feather';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -22,6 +23,17 @@ const HomeScreen = React.memo(() => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  useEffect(() => {
+    const backAction = () => {
+      BackHandler.exitApp();
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const checkLogin = async () => {
@@ -32,6 +44,9 @@ const HomeScreen = React.memo(() => {
           }
           else if (response.departmentId === 2) {
             navigation.navigate('HeadquarterStack')
+          }
+          else if (response.departmentId === 3) {
+            navigation.navigate('WarehouseStack')
           }
           else {
             setLoading(false)
@@ -67,6 +82,9 @@ const HomeScreen = React.memo(() => {
       }
       else if (result.data.departmentId === 2) {
         navigation.navigate('HeadquarterStack')
+      }
+      else if (result.data.departmentId === 3) {
+        navigation.navigate('WarehouseStack')
       } else {
         navigation.navigate('Home');
       }

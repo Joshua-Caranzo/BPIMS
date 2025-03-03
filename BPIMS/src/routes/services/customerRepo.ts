@@ -1,5 +1,5 @@
 import { CallResultDto } from "../types/CallResultDto";
-import { CustomerListDto, CustomerRequest } from "../types/customerType";
+import { CustomerListDto, CustomerRequest, TransactionRequestDto } from "../types/customerType";
 import { getFromBaseApi, putFormBaseApi, putToBaseApi } from "../utils/apiService";
 import { VITE_MAIN_API } from '@env';
 
@@ -24,4 +24,8 @@ export async function deleteCustomer(id: number) {
 export async function getCustomerImage(fileName: string) {
     const timestamp = Date.now();
     return `${baseUrl}/getCustomerImage?fileName=${fileName}&t=${timestamp}`;
+}
+
+export async function getTransactionHistory(transactionId: number) {
+    return await getFromBaseApi<CallResultDto<TransactionRequestDto>>('getTransactionHistory', { transactionId });
 }

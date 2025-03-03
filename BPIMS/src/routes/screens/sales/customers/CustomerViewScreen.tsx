@@ -4,85 +4,127 @@ import {
     Text,
     TouchableOpacity,
     TextInput,
-    Image,
     Alert,
     Keyboard,
     ScrollView,
-    ActivityIndicator,
-    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { CustomerDto, OrderHistory } from '../../../types/customerType';
-import { UserDetails } from '../../../types/userType';
-import { getUserDetails } from '../../../utils/auth';
 import { deleteCustomer, getCustomer, getCustomerImage, saveCustomer } from '../../../services/customerRepo';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CustomerStackParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
 import { Camera, ChevronLeft, Trash2 } from 'react-native-feather';
 import { formatTransactionDate } from '../../../utils/dateFormat';
+import FastImage from 'react-native-fast-image';
 
 type Props = NativeStackScreenProps<CustomerStackParamList, 'CustomerView'>;
 
 const CustomerViewScreen = React.memo(({ route }: Props) => {
-    const { id } = route.params;
+    const id = route.params.id;
+    const user = route.params.user
+    const customers = route.params.customers
+    const [name, setName] = useState<string | null>(route.params.name);
+    const [customerId, setCustomerId] = useState<number>(Number(id));
     const [customer, setCustomer] = useState<CustomerDto | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [user, setUser] = useState<UserDetails>();
     const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
     const [loaderMessage, setLoaderMessage] = useState<string>('Loading Customer Data...');
     const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+    const [nameExists, setNameExists] = useState<boolean>(false);
+    const [isValid, setIsValid] = useState<boolean>(false);
+    const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
+
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+            setKeyboardVisible(true);
+        });
+        const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardVisible(false);
+        });
+
+        return () => {
+            keyboardDidShowListener.remove();
+            keyboardDidHideListener.remove();
+        };
+    }, []);
+
+    useEffect(() => {
+        validateForm();
+    }, [customer, nameExists]);
+
+    function validateForm() {
+        const isFormValid = (
+            customer?.name !== "" &&
+            !nameExists
+        );
+        setIsValid(isFormValid);
+    }
 
     const fetchCustomer = useCallback(async () => {
         setLoading(true);
-        const userDetails = await getUserDetails();
-        setUser(userDetails);
-        if (id != 0 && id != null) {
-            const response = await getCustomer(id);
+        if (customerId != 0 && customerId != null) {
+            const response = await getCustomer(customerId);
             if (response) {
                 setCustomer(response.data.customer);
+                setName(response.data.customer.name)
                 setOrderHistory(response.data.orderHistory ?? []);
                 if (response.data.customer.fileName) {
                     const imageResponse = await getCustomerImage(response.data.customer.fileName);
                     setFileUrl(imageResponse);
                 }
             }
-        } else if (id == 0 && userDetails) {
+        } else if (customerId == 0 && user) {
             const newCustomer: CustomerDto = {
                 id: 0,
                 name: '',
                 contactNumber1: null,
                 contactNumber2: null,
                 totalOrderAmount: 0,
-                branchId: userDetails.branchId,
-                branch: userDetails.branchName,
+                branchId: user.branchId,
+                branch: user.branchName,
                 fileUrl: null,
                 fileName: null,
             };
             setCustomer(newCustomer);
         }
         setLoading(false);
-    }, [id]);
+    }, [customerId]);
 
     useEffect(() => {
         fetchCustomer();
     }, [fetchCustomer]);
 
     const handleImageSelect = useCallback(() => {
-        launchImageLibrary({ mediaType: 'photo', quality: 1 }, (response) => {
-            if (response.didCancel) {
-                return;
-            }
+        const options: CameraOptions & ImageLibraryOptions = {
+            mediaType: 'photo' as MediaType,
+            quality: 1,
+        };
+
+        const handleResponse = (response: any) => {
+            if (response.didCancel) return;
             if (response.errorCode) {
-                console.error('ImagePicker Error: ', response.errorMessage);
-                Alert.alert('An error occurred while selecting image.');
+                console.error('ImagePicker Error:', response.errorMessage);
+                Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
                 setFileUrl(response.assets[0].uri || null);
             } else {
                 Alert.alert('No image selected');
             }
-        });
+        };
+
+        Alert.alert(
+            'Select Image',
+            'Choose an option:',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Take Photo', onPress: () => launchCamera(options, handleResponse) },
+                { text: 'Choose from Library', onPress: () => launchImageLibrary(options, handleResponse) },
+            ],
+            { cancelable: true }
+        );
     }, []);
 
     const handleNameChange = useCallback((text: string) => {
@@ -100,7 +142,11 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
             }),
             name: text,
         }));
-    }, []);
+        if (customer) {
+            const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase() && c.id !== customer.id);
+            setNameExists(exists);
+        }
+    }, [customers]);
 
     const handleContactNumber1Change = useCallback((text: string) => {
         setCustomer((prevCustomer) => ({
@@ -153,7 +199,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 const today = new Date();
                 const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
                     .toString()
-                    .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`; // Format as DDMMYY
+                    .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
                 const firstName = customer.name?.split(' ')[0] || 'Unknown';
                 formData.append('file', {
                     uri: fileUrl,
@@ -163,19 +209,31 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
             }
             const result = await saveCustomer(formData);
             setLoading(false);
+            setCustomerId(result.data)
             await fetchCustomer();
         }
     }, [customer, user, fileUrl, fetchCustomer]);
 
     const removeCustomer = useCallback(
         async (id: number) => {
-            setLoaderMessage('Deleting Customer...');
-            setLoading(true);
-            const response = await deleteCustomer(id);
-            if (response.isSuccess) {
-                setLoading(false);
-                navigation.navigate('Customer');
-            }
+            Alert.alert(
+                'Confirm Deletion',
+                'Are you sure you want to delete this customer?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Yes',
+                        onPress: async () => {
+                            setLoaderMessage('Deleting Customer...');
+                            setLoading(true);
+                            const response = await deleteCustomer(id);
+                            if (response.isSuccess) {
+                                navigation.push('Customer');
+                            }
+                        }
+                    }
+                ]
+            );
         },
         [navigation]
     );
@@ -200,13 +258,13 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
         <View className="flex flex-1">
             <View className="top-3 flex flex-row justify-between px-2">
                 <View className="flex flex-row">
-                    <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.goBack()}>
+                    <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.push("Customer")}>
                         <ChevronLeft height={28} width={28} color="#fe6500" />
                     </TouchableOpacity>
                     {customer && customer.id != 0 ? (
-                        <Text className="font-bold text-base text-gray-700 ml-3">{customer.name}</Text>
+                        <Text className="font-bold text-lg text-black ml-3">{name}</Text>
                     ) : (
-                        <Text className="font-bold text-base text-gray-700 ml-3">New Customer</Text>
+                        <Text className="text-black text-lg font-bold ml-3">New Customer</Text>
                     )}
                 </View>
                 {customer && customer.id != 0 && (
@@ -228,16 +286,13 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         <View className="w-full flex-row justify-between">
                             <View className="flex-1">
                                 <Text className="text-gray-700 text-sm">Branch</Text>
-                                <TextInput
-                                    value={customer.branch?.toUpperCase() || ''}
-                                    editable={false}
-                                    className="pb-2 mb-2 text-[#fe6500]"
-                                    placeholder="Branch Name"
-                                />
+                                <Text className='pb-2 mb-2 text-[#fe6500]'>{customer.branch?.toUpperCase()}</Text>
                             </View>
                             <TouchableOpacity onPress={handleImageSelect}>
                                 {fileUrl ? (
-                                    <Image source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
+                                    <FastImage source={{
+                                        uri: fileUrl, priority: FastImage.priority.high,
+                                    }} className="w-24 h-24 rounded-lg" />
                                 ) : (
                                     <View className="w-24 h-24 bg-gray-500 rounded-lg justify-center items-center">
                                         <Camera color="white" height={32} width={32} />
@@ -246,63 +301,98 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                                 )}
                             </TouchableOpacity>
                         </View>
-
-                        <TextInput
-                            value={customer.name || ''}
-                            editable={true}
-                            className="border-b border-gray-400 py-2 mb-2 text-black"
-                            placeholder="Customer Name"
-                            onChangeText={handleNameChange}
-                            placeholderTextColor="gray"
-                        />
-
-                        <TextInput
-                            value={customer.contactNumber1 || ''}
-                            editable={true}
-                            className="border-b border-gray-400 py-2 mb-2 text-black"
-                            placeholder="Contact Number 1"
-                            onChangeText={handleContactNumber1Change}
-                            placeholderTextColor="gray"
-                        />
-                        <TextInput
-                            value={customer.contactNumber2 || ''}
-                            editable={true}
-                            className="border-b border-gray-400 py-2 mb-2 text-black"
-                            placeholder="Contact Number 2"
-                            onChangeText={handleContactNumber2Change}
-                            placeholderTextColor="gray"
-                        />
-                        {customer.id !== 0 && (
+                        <View className='w-full mb-2'>
+                            <Text className="text-gray-700 text-sm font-bold">Name</Text>
                             <TextInput
-                                value={customer.totalOrderAmount ? `Total Order Amount: ₱ ${customer.totalOrderAmount}` : ''}
-                                editable={false}
-                                className="border-b border-gray-400 py-2 mb-2"
-                                placeholder="Total Order Amount"
+                                value={customer.name || ''}
+                                editable={true}
+                                className="border-b border-gray-400 py-2 text-black"
+                                placeholder="Customer Name"
+                                onChangeText={handleNameChange}
+                                placeholderTextColor="#8a8a8a"
+                                selectionColor="#fe6500"
                             />
-                        )}
-                        <View className="flex flex-column mt-2">
-                            <Text className="text-gray-700 text-sm font-bold">Order History</Text>
-                            <ScrollView className="w-full mb-8 mt-1">
-                                {formattedOrderHistory.map((order) => (
-                                    <View key={order.id} className="flex flex-row justify-between">
-                                        <Text className="text-black text-xs">{order.slipNo}</Text>
-                                        <Text className="text-black text-xs">₱ {order.totalAmount}</Text>
-                                        <Text className="text-black text-xs">{order.formattedDate}</Text>
-                                    </View>
-                                ))}
-                            </ScrollView>
+                            {nameExists && (
+                                <Text className="text-red-500 text-xs">
+                                    This name already exists. Please use a different name.
+                                </Text>
+                            )}
                         </View>
+                        <View className='w-full'>
+                            <Text className="text-gray-700 text-sm font-bold">Contact Number 1</Text>
+                            <TextInput
+                                value={customer.contactNumber1 || ''}
+                                editable={true}
+                                className="border-b border-gray-400 py-2 mb-2 text-black"
+                                placeholder="Contact Number 1"
+                                onChangeText={handleContactNumber1Change}
+                                placeholderTextColor="#8a8a8a"
+                                selectionColor="#fe6500"
+                            />
+                        </View>
+                        <View className='w-full'>
+                            <Text className="text-gray-700 text-sm font-bold">Contact Number 2</Text>
+                            <TextInput
+                                value={customer.contactNumber2 || ''}
+                                editable={true}
+                                className="border-b border-gray-400 py-2 mb-2 text-black"
+                                placeholder="Contact Number 2"
+                                onChangeText={handleContactNumber2Change}
+                                placeholderTextColor="#8a8a8a"
+                                selectionColor="#fe6500"
+                            />
+                        </View>
+                        {customer.id !== 0 && (
+                            <View className='w-full'>
+                                <Text className="text-gray-700 text-sm font-bold">Total Order Amount</Text>
+                                <TextInput
+                                    value={customer.totalOrderAmount ? `₱ ${customer.totalOrderAmount}` : ''}
+                                    editable={false}
+                                    className="border-b border-gray-400 py-2 mb-2"
+                                    placeholder="Total Order Amount"
+                                />
+                            </View>
+                        )}
+                        {orderHistory.length > 0 && (
+                            <View className="flex flex-column mt-2 h-[37vh] md:h-[50vh] lg:h-[60vh] pb-2">
+                                <Text className="text-gray-700 text-sm font-bold">Order History</Text>
+                                <ScrollView className="w-full mb-8 mt-1">
+                                    <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
+                                        <Text className="text-black text-xs font-semibold flex-1 text-left">Slip No</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-center">Amount</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-right">Date</Text>
+                                    </View>
+
+                                    {formattedOrderHistory.map((order) => (
+                                        <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory', { transactionId: order.id })} key={order.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
+                                            <Text className="text-black text-xs flex-1 text-left">{order.slipNo}</Text>
+                                            <Text className="text-black text-xs flex-1 text-right mr-8">₱ {order.totalAmount}</Text>
+                                            <Text className="text-black text-xs flex-1 text-right">{order.formattedDate}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )
+                        }
                     </>
                 )}
             </View>
-            <View className="items-center absolute bottom-0 left-0 right-0 pb-2" style={{ zIndex: 100 }}>
-                <TouchableOpacity
-                    className="w-[95%] rounded-xl p-5 items-center bg-[#fe6500]"
-                    onPress={handleSave}
-                >
-                    <Text className="font-bold text-center text-white">SAVE</Text>
-                </TouchableOpacity>
-            </View>
+            {!keyboardVisible && (
+                <View className="items-center absolute bottom-0 left-0 right-0 pb-2">
+                    <TouchableOpacity
+                        onPress={handleSave}
+                        className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
+                        disabled={!isValid}
+                    >
+                        <View className="flex-1 flex flex-row items-center justify-center">
+                            <Text className={`font-bold ${!isValid ? 'text-[#fe6500]' : 'text-white'} text-lg`}>SAVE</Text>
+                            {loading && (
+                                <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 });

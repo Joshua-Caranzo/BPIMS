@@ -7,8 +7,9 @@ from tortoise import Tortoise
 """ GET METHODS """
 async def getCartandItems(userId):
     cart = await getCartforUser(userId)
+    user = await User.get_or_none(id = userId)
     totalCount = await getTotalItemCount(cart.id);    
-    cartItems = await getCartItems(cart.id)
+    cartItems = await getCartItems(cart.id, user.branchId)
 
     cart_data = cart.__dict__  
     cart_data.pop('userId', None)
@@ -53,13 +54,14 @@ async def getCartforUser(userId):
     return cart
 
 
-async def getCartItems(cartId):
+async def getCartItems(cartId, branchId):
     cartItems = await CartItems.all().filter(cartId=cartId)
     result = []
 
     if cartItems:
         for cartItem in cartItems:
             item = await Item.get_or_none(id=cartItem.itemId)
+            branchItem = await BranchItem.get_or_none(itemId=cartItem.itemId, branchId = branchId)
             if item:
                 result.append({
                     "id": cartItem.id,
@@ -67,7 +69,8 @@ async def getCartItems(cartId):
                     "name": item.name,
                     "price": item.price,
                     "quantity": cartItem.quantity,
-                    "sellByUnit": item.sellByUnit
+                    "sellByUnit": item.sellByUnit,
+                    "branchQty": branchItem.quantity
                 })
 
     return result
@@ -93,12 +96,6 @@ async def deleteAllCartItems(cartId):
 
     if cartItems:
         for cartItem in cartItems:
-            branch_item = await BranchItem.get_or_none(itemId=cartItem.itemId, branchId=user.branchId)
-
-            if branch_item:
-                branch_item.quantity += cartItem.quantity
-                await branch_item.save()
-
             await cartItem.delete()
 
         message = 'Cart items deleted successfully'
@@ -133,9 +130,7 @@ async def addItemToCart(cartId, itemId, quantity):
     if not branch_item or branch_item.quantity < quantity_decimal:
         return create_response(False, 'Not enough stock available for this item', None, None), 200
 
-    existing_cart_item = None
-    if item.sellByUnit:
-        existing_cart_item = await CartItems.get_or_none(cartId=cart.id, itemId=item.id)
+    existing_cart_item = await CartItems.get_or_none(cartId=cart.id, itemId=item.id)
 
     if existing_cart_item:
         existing_cart_item.quantity += quantity_decimal
@@ -148,7 +143,6 @@ async def addItemToCart(cartId, itemId, quantity):
     cart.subTotal += item.price * quantity_decimal
     await cart.save()
 
-    branch_item.quantity -= quantity_decimal
     await branch_item.save()
 
     return create_response(True, message, None, None), 200
@@ -164,10 +158,8 @@ async def updateItemQuantity(cartItemId, quantity):
 
     if cartItem:
         totalToAdd = (item.price * quantity_decimal) - (cartItem.quantity * item.price)
-        toAddQuantity = cartItem.quantity
         cartItem.quantity = quantity_decimal
         cart.subTotal += totalToAdd
-        branchItem.quantity += (toAddQuantity - quantity_decimal)
         await cartItem.save()
         await cart.save()
         await branchItem.save()
@@ -181,7 +173,6 @@ async def removeCartItem(cartItemId):
     cartItem = await CartItems.get_or_none(id=cartItemId)
     cart = await Cart.get_or_none(id=cartItem.cartId)
     user = await User.get_or_none(id = cart.userId)
-    branchItem = await BranchItem.get_or_none(branchId = user.branchId, itemId = cartItem.itemId) 
 
     if cartItem:
         item = await Item.get_or_none(id=cartItem.itemId)
@@ -189,7 +180,6 @@ async def removeCartItem(cartItemId):
         
         if cart and item:
             cart.subTotal -= item.price * cartItem.quantity
-            branchItem.quantity += cartItem.quantity
             if cart.subTotal < 0:
                 cart.subTotal = 0
                 cart.deliveryFee = 0
@@ -197,7 +187,6 @@ async def removeCartItem(cartItemId):
 
             await cart.save()
             await cartItem.delete()
-            await branchItem.save()
 
             message = 'Item removed from the cart successfully'
         else:
@@ -284,12 +273,16 @@ async def processPayment(cartId, amountReceived):
         transactionDate=datetime.now(),
         customerId=cart.customerId,
         branchId=user.branchId,
-        profit=0  
+        profit=0,
+        discount = cart.discount,
+        deliveryFee = cart.deliveryFee
     )
 
     for cItem in cartItems:
         item = await Item.get_or_none(id=cItem.itemId)
-        if item:
+        if item:    
+            branchItem = await BranchItem.get_or_none(branchId = user.branchId, itemId = item.id)
+            branchItem.quantity -= cItem.quantity
             itemAmount = item.price * cItem.quantity
             itemProfit = (item.price - item.cost) * cItem.quantity  
             total_profit += itemProfit 
@@ -311,7 +304,8 @@ async def processPayment(cartId, amountReceived):
 
     transaction.profit = total_profit
     await transaction.save()
-
+    await branchItem.save()
+    
     transactionRequest = {
         "transaction": {
             "id": transaction.id,
@@ -363,3 +357,43 @@ async def generate_slip_no(cashierId: int) -> str:
 
     return slip_no
 
+async def getTransactionHistory(transactionId):
+    transaction = await Transaction.get_or_none(id=transactionId)
+    
+    if not transaction:
+        return create_response(False, 'Transaction not found!'), 404
+    
+    branch = await Branch.get_or_none(id=transaction.branchId)
+    customer = await Customer.get_or_none(id=transaction.customerId) if transaction.customerId else None
+    transactionItems = await TransactionItem.filter(transactionId=transactionId)
+    
+    items = []
+    for tItem in transactionItems:
+        item = await Item.get_or_none(id=tItem.itemId)
+        if item:
+            items.append({
+                "id": tItem.id,
+                "itemId": item.id,
+                "name": item.name,
+                "price": item.price,
+                "quantity": tItem.quantity,
+                "amount": tItem.amount,
+                "sellByUnit": bool(item.sellByUnit)
+            })
+    
+    transactionData = {
+        "transaction": {
+            "id": transaction.id,
+            "totalAmount": transaction.totalAmount,
+            "amountReceived": transaction.amountReceived,
+            "slipNo": transaction.slipNo,
+            "transactionDate": transaction.transactionDate,
+            "branch": branch.name if branch else None,
+            "deliveryFee": transaction.deliveryFee,
+            "discount": transaction.discount,
+            "customerName": customer.name if customer else None
+        },
+        "transactionItems": items
+    }
+    
+    return create_response(True, 'Transaction retrieved successfully', transactionData), 200

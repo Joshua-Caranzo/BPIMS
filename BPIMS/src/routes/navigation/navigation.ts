@@ -1,12 +1,15 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Cart, TransactionDto, TransactionItemsDto } from '../types/salesType';
 import { UserDetails } from '../types/userType';
-import { BranchStockDto } from '../types/stockType';
+import { BranchStockDto, ItemStock, StockInputHistoryDto } from '../types/stockType';
+import { ItemHQDto } from '../types/itemType';
+import { CustomerListDto } from '../types/customerType';
 
 export type RootStackParamList = {
     Home: undefined;
     SalesStack: undefined;
-    HeadquarterStack: undefined
+    HeadquarterStack: undefined;
+    WarehouseStack: undefined;
 };
 
 export type SalesStackParamList = {
@@ -18,34 +21,39 @@ export type SalesStackParamList = {
 
 export type ItemStackParamList = {
     Item: undefined;
-    Cart: undefined;
-    DeliveryFee: { deliveryFee: string };
-    Discount: { discount: string, subTotal: number };
-    Payment: undefined;
+    Cart: { user: UserDetails };
+    DeliveryFee: { deliveryFee: string, user: UserDetails };
+    Discount: { discount: string, subTotal: number, user: UserDetails };
+    Payment: { user: UserDetails };
     Transaction: { cart: Cart, user: UserDetails };
     SlipOrder: { transaction: TransactionDto, transactionItems: TransactionItemsDto[] };
-    CustomerList: undefined;
-    NewCustomer: { user: UserDetails };
+    CustomerList: { user: UserDetails };
+    NewCustomer: { user: UserDetails, customers: CustomerListDto[] };
 };
 
 export type CustomerStackParamList = {
     Customer: undefined;
-    CustomerView: { id: number | null };
+    CustomerView: { id: number | null, user: UserDetails, customers: CustomerListDto[], name: string | null };
+    TransactionHistory: { transactionId: number }
 };
 
 export type BranchStockParamList = {
     BranchStock: undefined;
     StockInput: { item: BranchStockDto, user: UserDetails }
+    StockHistory: { item: BranchStockDto, user: UserDetails, history: StockInputHistoryDto }
 };
 
 export type SalesReportParamList = {
     SalesReport: undefined;
+    TransactionHistory: { transactionId: number }
 };
 
 export type HeadQuarterStackParamList = {
     SalesReportStack: undefined
     UserStack: undefined
     ItemsStack: undefined
+    StockMonitorStack: undefined;
+    CustomerHQStack: undefined;
 };
 
 export type SalesReportHQParamList = {
@@ -59,7 +67,27 @@ export type UsersHQParamList = {
 
 export type ItemsHQParamList = {
     Items: undefined;
+    ItemView: { item: ItemHQDto }
 }
+
+export type StockMonitorParamList = {
+    StockMonitor: undefined;
+    StockInput: { item: ItemStock, user: UserDetails, branchId: number }
+}
+
+export type CustomerHQStackParamList = {
+    Customer: undefined;
+    CustomerView: { id: number | null, customers: CustomerListDto[] };
+    TransactionHistory: { transactionId: number }
+};
+
+export type WarehouseStackParamList = {
+    WHStock: undefined;
+};
+
+export type WhStockStackParamList = {
+    WHScreen: undefined;
+};
 
 export type SalesStackNavigationProps<T extends keyof SalesStackParamList> =
     NativeStackScreenProps<SalesStackParamList, T>;
@@ -87,3 +115,16 @@ export type UsersHQNavigationProps<T extends keyof UsersHQParamList> =
 
 export type ItemsHQNavigationProps<T extends keyof ItemsHQParamList> =
     NativeStackScreenProps<ItemsHQParamList, T>;
+
+export type StockMonitorNavigationProps<T extends keyof StockMonitorParamList> =
+    NativeStackScreenProps<StockMonitorParamList, T>;
+
+export type CustomerHQStackNavigationProps<T extends keyof CustomerHQStackParamList> =
+    NativeStackScreenProps<CustomerHQStackParamList, T>;
+
+
+export type WareStackNavigationProps<T extends keyof WarehouseStackParamList> =
+    NativeStackScreenProps<WarehouseStackParamList, T>;
+
+export type WHStackNavigationProps<T extends keyof WhStockStackParamList> =
+    NativeStackScreenProps<WhStockStackParamList, T>;

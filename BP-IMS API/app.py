@@ -12,7 +12,7 @@ import asyncio
 import uvicorn
 from quart_cors  import cors
 from utils import token_required
-from config import CUSTOMER_IMAGES
+from config import CUSTOMER_IMAGES, ITEM_IMAGES
 import os
 
 app = Quart(__name__)
@@ -81,7 +81,7 @@ async def getCartandItems():
 
 @app.route('/getBranchStocks', methods=['GET'])
 @token_required
-async def get_progetBranchStocksducts():
+async def getBranchStocks():
     categoryId = request.args.get('categoryId')
     page = request.args.get('page')
     search = request.args.get('search')
@@ -99,7 +99,6 @@ async def getStockHistory():
 @app.route('/getCustomerImage', methods=['GET'])
 async def getCustomerImage():
     fileName = request.args.get('fileName')
-
     if not fileName:
         return {"error": "fileName parameter is required"}, 400
 
@@ -143,6 +142,48 @@ async def getProductsHQ():
     page = request.args.get('page')
     search = request.args.get('search')
     response = await itemService.getProductsHQ(int(categoryId), int(page), search) 
+    return response
+
+@app.route('/getCategoriesHQ', methods=['GET'])
+@token_required
+async def getCategoriesHQ():
+    response = await categoryService.getCategoriesHQ() 
+    return response
+
+@app.route('/getProductHQ', methods=['GET'])
+@token_required
+async def getProductHQ():
+    itemId = request.args.get('id')
+    response = await itemService.getProductHQ(itemId) 
+    return response
+
+@app.route('/getItemImage', methods=['GET'])
+async def getItemImage():
+    fileName = request.args.get('fileName')
+    if not fileName:
+        return {"error": "fileName parameter is required"}, 400
+
+    file_path = os.path.join(ITEM_IMAGES, fileName)
+
+    if not os.path.exists(file_path):
+        return {"error": "File not found"}, 404
+
+    return await send_file(file_path)
+
+@app.route('/getStocksMonitor', methods=['GET'])
+@token_required
+async def getStocksMonitor():
+    categoryId = request.args.get('categoryId')
+    page = request.args.get('page')
+    search = request.args.get('search')
+    response = await itemService.getStocksMonitor(int(categoryId), int(page), search) 
+    return response
+
+@app.route('/getTransactionHistory', methods=['GET'])
+@token_required
+async def getTransactionHistory():
+    transactionId = request.args.get('transactionId')
+    response = await transactionService.getTransactionHistory(int(transactionId)) 
     return response
 
 """ POST AND PUT METHODS """
@@ -225,10 +266,9 @@ async def updateCustomer():
 @token_required
 async def generate_pdf():
     data = await request.json
-    transaction = data.get('transaction')
-    transaction_items = data.get('transactionItems')
+    transactionId = data.get('transactionId')
 
-    pdf_buffer = await fileService.generate_receipt_pdf(transaction, transaction_items) 
+    pdf_buffer = await fileService.generateReceipt(transactionId) 
 
     return await send_file(pdf_buffer, as_attachment=True, mimetype='application/pdf')  
 
@@ -273,6 +313,23 @@ async def editUser():
     response = await userService.editUser(user) 
     return response
 
+@app.route('/saveItem', methods=['PUT'])
+@token_required
+async def saveItem():
+    data = await request.form
+    files = await request.files  
+    file = files.get('file')
+    response = await itemService.saveItem(data, file) 
+    return response
+
+@app.route('/deleteItem', methods=['PUT'])
+@token_required
+async def deleteItem():
+    data = await request.json
+    id = data.get('id')
+    response = await itemService.deleteItem(int(id)) 
+    return response
+
 """ SOCKET METHODS """
 
 @app.websocket('/ws/criticalItems')
@@ -298,6 +355,10 @@ async def dailyTransactionHQ():
 async def totalSalesHQ():
     await socketService.totalSalesHQ(websocket)
 
+@app.websocket('/ws/criticalItemsHQ')
+async def critical_items_ws_HQ():
+    await socketService.criticalItemsHQ(websocket)
+
 if __name__ == '__main__':
     asyncio.run(init())
-    uvicorn.run(app, host="192.168.1.21", port=5000)
+    uvicorn.run(app, host="192.168.1.30", port=5000)

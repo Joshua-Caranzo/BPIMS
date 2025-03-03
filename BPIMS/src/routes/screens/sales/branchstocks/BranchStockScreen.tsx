@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     View,
     TouchableOpacity,
@@ -77,7 +77,6 @@ const BranchStockScreen = React.memo(() => {
                 search.trim(),
                 Number(userResponse?.branchId)
             );
-
             if (response.isSuccess) {
                 const newProducts = response.data;
                 setStocks((prevProducts) =>
@@ -159,7 +158,7 @@ const BranchStockScreen = React.memo(() => {
                 <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Branch Stocks</Text>
+                <Text className="text-black text-lg font-bold">BRANCH STOCKS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text
@@ -224,7 +223,7 @@ const BranchStockScreen = React.memo(() => {
                 {loading && (
                     <View className="py-2">
                         <ActivityIndicator size="small" color="#fe6500" />
-                        <Text className="text-center text-[#fe6500]">Fetching items...</Text>
+                        <Text className="text-center text-[#fe6500]">Loading stocks...</Text>
                     </View>
                 )}
             </View>
@@ -236,6 +235,7 @@ const BranchStockScreen = React.memo(() => {
                     onEndReached={handleLoadMore}
                     onEndReachedThreshold={0.3}
                     contentContainerStyle={{ paddingBottom: 20 }}
+                    showsVerticalScrollIndicator={false}
                     ListFooterComponent={
                         loadMore ? <ActivityIndicator size="small" color="#fe6500" /> : null
                     }

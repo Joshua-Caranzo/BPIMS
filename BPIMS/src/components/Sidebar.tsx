@@ -25,19 +25,19 @@ const Sidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: SidebarPr
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [criticalCount, setCriticalCount] = useState(0);
 
-    const leftValue = useRef(new Animated.Value(-sidebarWidth)).current;
+    const translateX = useRef(new Animated.Value(-sidebarWidth)).current;
 
     const debouncedSetCriticalCount = useCallback(debounce((count: number) => {
         setCriticalCount(count);
     }, 100), []);
 
     useEffect(() => {
-        Animated.timing(leftValue, {
+        Animated.timing(translateX, {
             toValue: isVisible ? 0 : -sidebarWidth,
-            duration: 200,
-            useNativeDriver: false,
+            duration: 300,
+            useNativeDriver: true,
         }).start();
-    }, [isVisible, leftValue, sidebarWidth]);
+    }, [isVisible, sidebarWidth]);
 
     useEffect(() => {
         if (!userDetails) return;
@@ -78,16 +78,18 @@ const Sidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: SidebarPr
             className="bg-[#fe6500] pt-7 px-1 absolute top-0 bottom-0 z-50"
             style={{
                 width: sidebarWidth,
-                left: leftValue,
+                transform: [{ translateX }],
             }}
         >
             <View className="flex items-center mb-10">
                 <Image source={require("./images/icon-orange-bg.png")} className="w-20 h-20 mb-3" />
                 <View className="relative w-full flex-row justify-center items-center">
                     <View className="items-center flex-1">
-                        <Text className={`text-white font-bold ${isTablet ? "text-[20px]" : "text-[14px]"}`}>
-                            {userDetails?.branchName.toUpperCase()}
-                        </Text>
+                        {userDetails?.branchName && (
+                            <Text className={`text-white font-bold ${isTablet ? "text-[20px]" : "text-[14px]"}`}>
+                                {userDetails?.branchName.toUpperCase()}
+                            </Text>
+                        )}
                         <Text className={`text-white ${isTablet ? "text-lg" : "text-[12px]"}`}>
                             {userDetails?.name.toUpperCase()}
                         </Text>
@@ -132,7 +134,7 @@ const Sidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: SidebarPr
                         </Text>
 
                         {item.text === "Branch Stocks" && criticalCount > 0 && (
-                            <View className="absolute top-0 right-7 bg-red-500 rounded-full px-1.5 min-w-[18px] flex items-center justify-center">
+                            <View className="bg-red-500 rounded-full px-1.5 flex items-center justify-center -mt-3">
                                 <Text className="text-white text-xs font-bold">{criticalCount}</Text>
                             </View>
                         )}

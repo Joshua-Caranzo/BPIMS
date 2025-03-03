@@ -11,13 +11,12 @@ import {
 import Sidebar from '../../../../components/Sidebar';
 import { UserDetails } from '../../../types/userType';
 import { getUserDetails } from '../../../utils/auth';
-import { LineChart } from 'react-native-gifted-charts';
+import { BarChart, LineChart } from 'react-native-gifted-charts';
 import { Menu } from 'react-native-feather';
 import { debounce } from 'lodash';
 import { getSocketData } from '../../../utils/apiService';
 import {
     capitalizeFirstLetter,
-    formatTransactionDate,
     formatTransactionTime,
 } from '../../../utils/dateFormat';
 import {
@@ -26,6 +25,9 @@ import {
     SalesGraphDto,
     TotalSalesDto,
 } from '../../../types/reportType';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SalesReportParamList } from '../../../navigation/navigation';
 
 const SalesReportScreen = React.memo(() => {
     const [user, setUser] = useState<UserDetails>();
@@ -39,6 +41,7 @@ const SalesReportScreen = React.memo(() => {
     const [loading, setLoading] = useState<boolean>(true);
     const socketRef = useRef<WebSocket | null>(null);
     const salesSocketRef = useRef<WebSocket | null>(null);
+    const navigation = useNavigation<NativeStackNavigationProp<SalesReportParamList>>();
 
     useEffect(() => {
         const fetchUserDetails = async () => {
@@ -174,7 +177,7 @@ const SalesReportScreen = React.memo(() => {
                 <TouchableOpacity className="mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Sales Report</Text>
+                <Text className="text-black text-lg font-bold">SALES REPORT</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text className="text-white" style={{ fontSize: 12 }}>
@@ -205,6 +208,8 @@ const SalesReportScreen = React.memo(() => {
                 <View className="justify-center items-center bg-gray mt-2">
                     <View className="w-full">
                         <LineChart
+                            isAnimated
+                            animateOnDataChange
                             thickness={6}
                             height={200}
                             color="#fe6500"
@@ -232,15 +237,19 @@ const SalesReportScreen = React.memo(() => {
                     </View>
                     <View className="items-center flex flex-row justify-between w-full mt-6 px-4">
                         <Text className="text-sm text-[#fe6500]">{formattedDate}</Text>
-                        <Text className="text-sm text-[#fe6500]">{user?.branchName.toUpperCase()}</Text>
+                        {
+                            user?.branchName && (
+                                <Text className="text-sm text-[#fe6500]">{user?.branchName.toUpperCase()}</Text>
+                            )
+                        }
                     </View>
                     <View className="items-center flex flex-row justify-between w-full mt-1 px-4">
                         <Text className="text-lg text-black font-bold">₱ {totalAmount.toFixed(2)}</Text>
                         <Text className="text-sm text-gray-600">Branch</Text>
                     </View>
-                    <ScrollView className="w-full mt-4 px-4 h-[50%]">
+                    <ScrollView className="w-full mt-4 px-4 h-[40%]">
                         {transactions.map((transaction, index) => (
-                            <View key={index} className="mb-3 py-1 bg-gray rounded-lg border-b border-gray-500">
+                            <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory', { transactionId: transaction.id })} key={index} className="mb-3 py-1 bg-gray rounded-lg border-b border-gray-500">
                                 <View className="flex-row justify-between">
                                     <View className="flex flex-row">
                                         <Text className="text-black font-semibold">
@@ -261,7 +270,7 @@ const SalesReportScreen = React.memo(() => {
                                         {transaction.items.map((item) => item.itemName).join(', ')}
                                     </Text>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         ))}
                     </ScrollView>
                 </View>
@@ -284,6 +293,76 @@ const SalesReportScreen = React.memo(() => {
                     </View>
                     <View className="w-full h-[2px] bg-gray-500 mt-2"></View>
                 </View>
+            )}
+            {activeCategory === 2 && (
+                <ScrollView className="w-full p-4">
+                    <Text className="text-lg font-bold text-center mb-4">Sales Analysis</Text>
+
+                    <View className="bg-white p-4 rounded-lg shadow-md mb-6">
+                        <Text className="text-md font-semibold mb-2">Sales Over a Year</Text>
+                        <LineChart
+                            data={[
+                                { value: 5000, label: 'Jan' },
+                                { value: 8000, label: 'Feb' },
+                                { value: 6000, label: 'Mar' },
+                                { value: 10000, label: 'Apr' },
+                                { value: 7000, label: 'May' },
+                                { value: 9000, label: 'Jun' },
+                                { value: 12000, label: 'Jul' },
+                                { value: 15000, label: 'Aug' },
+                                { value: 11000, label: 'Sep' },
+                                { value: 13000, label: 'Oct' },
+                                { value: 14000, label: 'Nov' },
+                                { value: 16000, label: 'Dec' },
+                            ]}
+                            thickness={4}
+                            height={200}
+                            color="#4CAF50"
+                            noOfSections={3}
+                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
+                            dataPointsColor="#4CAF50"
+                            startFillColor="rgba(76, 175, 80, 0.3)"
+                            endFillColor="rgba(76, 175, 80, 0.1)"
+                            startOpacity={0.3}
+                            endOpacity={0.1}
+                            adjustToWidth
+                            hideYAxisText
+                            disableScroll
+                            spacing={22}
+                        />
+                    </View>
+
+                    <View className="bg-white p-4 rounded-lg shadow-md">
+                        <Text className="text-md font-semibold mb-2">Sales Breakdown Per Month</Text>
+                        <BarChart
+                            data={[
+                                { value: 3000, label: 'Jan' },
+                                { value: 5000, label: 'Feb' },
+                                { value: 4000, label: 'Mar' },
+                                { value: 7000, label: 'Apr' },
+                                { value: 6000, label: 'May' },
+                                { value: 7500, label: 'Jun' },
+                                { value: 9000, label: 'Jul' },
+                                { value: 11000, label: 'Aug' },
+                                { value: 9500, label: 'Sep' },
+                                { value: 12000, label: 'Oct' },
+                                { value: 13000, label: 'Nov' },
+                                { value: 14000, label: 'Dec' },
+                            ]}
+                            barWidth={12}
+                            height={200}
+                            color="blue"
+                            noOfSections={4}
+                            hideRules
+                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
+                            hideYAxisText
+                            disableScroll
+                            spacing={10}
+                        />
+                    </View>
+                </ScrollView>
             )}
         </View>
     );

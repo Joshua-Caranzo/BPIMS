@@ -5,8 +5,7 @@ import {
     TextInput,
     ScrollView,
     Text,
-    ActivityIndicator,
-    StyleSheet,
+    ActivityIndicator
 } from 'react-native';
 import { CustomerListDto } from '../../../types/customerType';
 import { getUserDetails } from '../../../utils/auth';
@@ -39,10 +38,10 @@ const CustomerScreen = React.memo(() => {
         setUser(userDetails);
         if (userDetails) {
             setBranchId(userDetails.branchId);
-        }
-        const response = await getCustomerList(branchId, search);
-        if (response) {
-            setCustomers(response.data);
+            const response = await getCustomerList(userDetails.branchId, search);
+            if (response) {
+                setCustomers(response.data);
+            }
         }
         setLoading(false);
     }, [branchId, search]);
@@ -55,9 +54,10 @@ const CustomerScreen = React.memo(() => {
         inputRef.current?.focus();
     }, []);
 
-    const handleViewCustomer = useCallback((id: number | null) => {
-        navigation.navigate('CustomerView', { id: id || 0 });
-    }, [navigation]);
+    const handleViewCustomer = useCallback((id: number | null, name: string | null) => {
+        if (user)
+            navigation.navigate('CustomerView', { id: id || 0, user: user, customers, name });
+    }, [navigation, user]);
 
     const filteredCustomers = useMemo(() => {
         return customers.filter((customer) =>
@@ -74,7 +74,7 @@ const CustomerScreen = React.memo(() => {
                 <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Customers</Text>
+                <Text className="text-black text-lg font-bold">CUSTOMERS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text
@@ -96,7 +96,7 @@ const CustomerScreen = React.memo(() => {
                         </TouchableOpacity>
                         <TextInput
                             className="flex-1 h-8 text-black p-1"
-                            placeholder="Search customers..."
+                            placeholder="Search customer..."
                             placeholderTextColor="#8a8a8a"
                             value={search}
                             onChangeText={setSearch}
@@ -105,20 +105,21 @@ const CustomerScreen = React.memo(() => {
                             returnKeyType="search"
                         />
                     </View>
-                    <TouchableOpacity className="mr-2" onPress={() => handleViewCustomer(null)}>
+                    <TouchableOpacity className="mr-2" onPress={() => handleViewCustomer(null, null)}>
                         <PlusCircle width={18} height={18} color="#fe6500" />
                     </TouchableOpacity>
                 </View>
                 {loading ? (
-                    <View className='flex flex-1 justify-center items-center mt-10'>
-                        <ActivityIndicator size="large" color="#fe6500" />
+                    <View className="py-2">
+                        <ActivityIndicator size="small" color="#fe6500" />
+                        <Text className="text-[#fe6500] mt-2">Loading Customers...</Text>
                     </View>
                 ) : (
                     <ScrollView className="w-full mb-8">
                         {filteredCustomers.map((customer) => (
                             <TouchableOpacity
                                 key={customer.id}
-                                onPress={() => handleViewCustomer(customer.id)}
+                                onPress={() => handleViewCustomer(customer.id, customer.name)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
                                 <Text className="text-black text-base">{customer.name}</Text>
