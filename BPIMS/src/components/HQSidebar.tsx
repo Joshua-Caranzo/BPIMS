@@ -25,22 +25,22 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [criticalCount, setCriticalCount] = useState(0);
 
-    const leftValue = useRef(new Animated.Value(-sidebarWidth)).current;
+    const translateX = useRef(new Animated.Value(-sidebarWidth)).current;
 
     const debouncedSetCriticalCount = useCallback(debounce((count: number) => {
         setCriticalCount(count);
     }, 100), []);
 
     useEffect(() => {
-        Animated.timing(leftValue, {
+        Animated.timing(translateX, {
             toValue: isVisible ? 0 : -sidebarWidth,
-            duration: 200,
-            useNativeDriver: false,
+            duration: 300,
+            useNativeDriver: true,
         }).start();
-    }, [isVisible, leftValue, sidebarWidth]);
+    }, [isVisible, sidebarWidth]);
 
-/*     useEffect(() => {
-        const socket = getSocketData('criticalItems');
+    useEffect(() => {
+        const socket = getSocketData('criticalItemsHQ');
 
         socket.onmessage = (event) => {
             debouncedSetCriticalCount(Number(event.data));
@@ -49,7 +49,7 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
         return () => {
             socket.close();
         };
-    }, [debouncedSetCriticalCount]); */
+    }, [debouncedSetCriticalCount]);
 
     const handleClick = useCallback((page: keyof RootStackParamList) => {
         toggleSidebar();
@@ -68,8 +68,8 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
     ], [isTablet]);
 
     const branchHeadItems = useMemo(() => [
-        { IconComponent: <BoxIcon size={isTablet ? 24 : 20} />, text: "Stocks Monitor", page: "CustomerStack" },
-        { IconComponent: <Users height={isTablet ? 20 : 16} width={isTablet ? 20 : 16} color={"white"} />, text: "All Customers", page: "SalesReportStack" }
+        { IconComponent: <BoxIcon size={isTablet ? 24 : 20} />, text: "Stocks Monitor", page: "StockMonitorStack" },
+        { IconComponent: <Users height={isTablet ? 20 : 16} width={isTablet ? 20 : 16} color={"white"} />, text: "All Customers", page: "CustomerHQStack" }
     ], [isTablet]);
 
     return (
@@ -77,7 +77,7 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
             className="bg-[#fe6500] pt-7 px-1 absolute top-0 bottom-0 z-50"
             style={{
                 width: sidebarWidth,
-                left: leftValue,
+                transform: [{ translateX }],
             }}
         >
             <View className="flex items-center mb-10">
@@ -116,7 +116,6 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
                         onPress={() => handleClick(item.page as any)}
                         key={index}
                         className="flex-row items-center w-full px-3 mb-2 relative"
-                        disabled={userDetails?.hasHeadAccess === "false"}
                     >
                         <View className="w-10 items-center relative">
                             {item.IconComponent}
@@ -126,8 +125,8 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
                             {item.text}
                         </Text>
 
-                        {item.text === "Branch Stocks" && criticalCount > 0 && (
-                            <View className="absolute top-0 right-7 bg-red-500 rounded-full px-1.5 min-w-[18px] flex items-center justify-center">
+                        {item.text === "Stocks Monitor" && criticalCount > 0 && (
+                            <View className="bg-red-500 rounded-full px-1.5 flex items-center justify-center -mt-3">
                                 <Text className="text-white text-xs font-bold">{criticalCount}</Text>
                             </View>
                         )}

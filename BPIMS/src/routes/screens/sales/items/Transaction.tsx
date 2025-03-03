@@ -1,16 +1,16 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
     Text,
     TouchableOpacity,
     View,
     Alert,
     ActivityIndicator,
+    BackHandler,
 } from 'react-native';
 import { Check, ChevronLeft } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Cart, TransactionDto, TransactionItemsDto } from '../../../types/salesType';
-import { UserDetails } from '../../../types/userType';
+import { TransactionDto, TransactionItemsDto } from '../../../types/salesType';
 import { processPayment } from '../../../services/salesRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import { ItemStackParamList } from '../../../navigation/navigation';
@@ -25,6 +25,16 @@ const TransactionScreen = React.memo(({ route }: Props) => {
     const [transaction, setTransaction] = useState<TransactionDto>();
     const [items, setTransactionItems] = useState<TransactionItemsDto[]>([]);
     const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
+
+    useEffect(() => {
+        const backAction = () => {
+            return true;
+        };
+
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+        return () => backHandler.remove();
+    }, []);
 
     const total = useMemo(() => {
         return (Number(cart.subTotal) - Number(cart.discount) + Number(cart.deliveryFee));
@@ -89,7 +99,7 @@ const TransactionScreen = React.memo(({ route }: Props) => {
                         >
                             <ChevronLeft height={28} width={28} color="#fe6500" />
                         </TouchableOpacity>
-                        <Text className="text-black text-lg font-bold">Payment</Text>
+                        <Text className="text-black text-lg font-bold">PAYMENT</Text>
                         <View className="items-center mr-2">
                             <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                                 <Text
@@ -163,13 +173,13 @@ const TransactionScreen = React.memo(({ route }: Props) => {
                             className="w-[95%] rounded-xl p-4 mb-2 items-center bg-gray-500"
                             onPress={clickReceipt}
                         >
-                            <Text className="font-bold text-white">Receipt</Text>
+                            <Text className="font-bold text-lg text-white">RECEIPT</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             className="w-[95%] rounded-xl p-4 items-center bg-[#fe6500]"
                             onPress={() => navigation.navigate('Item')}
                         >
-                            <Text className="font-bold text-white">Start New Sale</Text>
+                            <Text className="font-bold text-lg text-white">START NEW</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

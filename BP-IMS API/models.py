@@ -6,6 +6,7 @@ class User(Model):
     email = fields.CharField(max_length=255, null=False)
     name = fields.CharField(max_length=255, null=False)
     encryptedPassword = fields.CharField(max_length=500, null=False)
+    password = fields.CharField(max_length=255, null=False)
     departmentId = fields.IntField(null = False)
     branchId = fields.IntField(null = True)
     hasHeadAccess = fields.BooleanField(null=False, default=False)
@@ -79,6 +80,8 @@ class Transaction(Model):
     customerId = fields.CharField(max_length=500, null=True)
     branchId = fields.IntField(null=False)
     profit = fields.DecimalField(max_digits=18, decimal_places=2, null=False)
+    deliveryFee = fields.DecimalField(max_digits=10, decimal_places=2, null = True)
+    discount = fields.DecimalField(max_digits=10, decimal_places=2, null = True)
 
     class Meta:
         table = "transactions"
@@ -126,3 +129,11 @@ class StockInput(Model):
 
     class Meta:
         table = "stockInputs"
+
+class WareHouseItem(Model):
+    id = fields.IntField(null=False, pk=True)
+    itemId = fields.IntField(null=False)
+    quantity = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
+
+    class Meta:
+        table = "WareHouseItems"

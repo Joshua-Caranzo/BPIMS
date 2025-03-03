@@ -68,7 +68,7 @@ const UserListScreen = React.memo(() => {
                 <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Users</Text>
+                <Text className="text-black text-lg font-bold">USERS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text
@@ -104,8 +104,9 @@ const UserListScreen = React.memo(() => {
                     </TouchableOpacity>
                 </View>
                 {loading ? (
-                    <View className='flex flex-1 justify-center items-center mt-10'>
-                        <ActivityIndicator size="large" color="#fe6500" />
+                    <View className="flex flex-1 justify-center items-center mt-6">
+                        <ActivityIndicator size="small" color="#fe6500" />
+                        <Text className="text-[#fe6500] mt-2">Searching...</Text>
                     </View>
                 ) : (
                     <ScrollView className="w-full mb-8">

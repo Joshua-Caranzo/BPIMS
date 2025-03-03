@@ -6,8 +6,9 @@ export type ItemDto = {
     cost: number;
     isManaged: boolean;
     imagePath: string | null;
+    imageUrl: string | null;
     quantity: number;
-    sellbyUnit: boolean
+    sellByUnit: boolean
 };
 
 export type CategoryDto = {
@@ -21,7 +22,8 @@ export type CartItems = {
     price: number;
     quantity: number;
     name: string;
-    sellByUnit: boolean
+    sellByUnit: boolean;
+    branchQty: number;
 }
 
 export type Cart = {
@@ -57,6 +59,7 @@ export type TransactionItemsDto = {
     price: number;
     quantity: number;
     amount: number;
+    sellByUnit: number;
 }
 
 export type TransactionRequestDto = {

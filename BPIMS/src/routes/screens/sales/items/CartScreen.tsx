@@ -8,11 +8,10 @@ import {
 } from 'react-native';
 import { Cart, CartItems } from '../../../types/salesType';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ItemStackParamList } from '../../../navigation/navigation';
 import { ChevronLeft, Trash2 } from 'react-native-feather';
 import {
-  addItemToCart,
   deleteAllCartItems,
   getCart,
   updateItemQuantity,
@@ -20,30 +19,32 @@ import {
   updateDiscount,
   removeCartItem,
 } from '../../../services/salesRepo';
-import { getUserDetails } from '../../../utils/auth';
-import { UserDetails } from '../../../types/userType';
 import NumericKeypad from '../../../../components/NumericKeypad';
 
-const CartScreen = React.memo(() => {
+type Props = NativeStackScreenProps<ItemStackParamList, 'Cart'>;
+
+const CartScreen = React.memo(({ route }: Props) => {
+  const user = route.params.user;
   const [cartItems, setCartItems] = useState<CartItems[]>([]);
   const [cart, setCart] = useState<Cart>();
-  const [user, setUser] = useState<UserDetails>();
   const [isInputMode, setInputMode] = useState(false);
   const [doubleQuantity, setDoubleQuantity] = useState<string>('0.00');
   const [quantity, setQuantity] = useState<string>('0');
   const [selectedItem, setSelectedItem] = useState<CartItems>();
   const [buttonLoading, setButtonLoading] = useState<boolean>(false);
-  const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
+  const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
+  const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
   const fetchCartItems = useCallback(async () => {
-    const user = await getUserDetails();
-    setUser(user);
+    setLoading(true)
     const result = await getCart();
     setCartItems(result.data.cartItems);
     setCart(result.data.cart);
     if (result.data.cartItems.length === 0) {
       navigation.navigate('Item');
     }
+    setLoading(false)
   }, [navigation]);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ const CartScreen = React.memo(() => {
   const openInput = useCallback((cartItem: CartItems) => {
     setInputMode(true);
     setSelectedItem(cartItem);
+    setMessage(null)
     if (cartItem.sellByUnit) {
       setQuantity(Math.round(cartItem.quantity).toString());
     } else {
@@ -87,19 +89,21 @@ const CartScreen = React.memo(() => {
   }, []);
 
   const applyFee = useCallback(() => {
-    navigation.navigate('DeliveryFee', {
-      deliveryFee: cart?.deliveryFee?.toString() || '0.00',
-    });
-  }, [cart, navigation]);
+    if (user)
+      navigation.navigate('DeliveryFee', {
+        deliveryFee: cart?.deliveryFee?.toString() || '0.00',
+        user
+      });
+  }, [cart, navigation, user]);
 
   const applyDiscount = useCallback(() => {
     if (cart) {
       navigation.navigate('Discount', {
         discount: cart?.discount?.toString() || '0.00',
-        subTotal: cart.subTotal,
+        subTotal: cart.subTotal, user
       });
     }
-  }, [cart, navigation]);
+  }, [cart, navigation, user]);
 
   const removeDiscount = useCallback(async () => {
     await updateDiscount(null);
@@ -112,8 +116,8 @@ const CartScreen = React.memo(() => {
   }, [fetchCartItems]);
 
   const handlePayment = useCallback(() => {
-    navigation.navigate('Payment');
-  }, [navigation]);
+    navigation.navigate('Payment', { user });
+  }, [navigation, user]);
 
   const removeItem = useCallback(
     async (id: number | undefined) => {
@@ -133,19 +137,33 @@ const CartScreen = React.memo(() => {
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (!selectedItem?.sellByUnit) {
-        let current = doubleQuantity.replace('.', '');
-        current += key;
-        const formatted = (parseInt(current) / 100).toFixed(2);
-        setDoubleQuantity(formatted);
-      } else {
-        let current = quantity.toString();
-        if (current === '0') {
-          current = key;
-        } else {
+      if (selectedItem?.branchQty) {
+        if (!selectedItem?.sellByUnit) {
+          let current = doubleQuantity.replace('.', '');
           current += key;
+          const formatted = (parseInt(current) / 100).toFixed(2);
+          if (Number(formatted) <= selectedItem?.branchQty) {
+            setDoubleQuantity(formatted);
+            setMessage(null)
+          }
+          else {
+            setMessage(`Quantity exceeds available stock. Available stock: ${selectedItem.sellByUnit ? Math.round(selectedItem.branchQty) : selectedItem.branchQty}`);
+          }
+        } else {
+          let current = quantity.toString();
+          if (current === '0') {
+            current = key;
+          } else {
+            current += key;
+          }
+          if (Number(current) <= selectedItem?.branchQty) {
+            setQuantity(current);
+            setMessage(null)
+          }
+          else {
+            setMessage(`Quantity exceeds available stock. Available stock: ${selectedItem.sellByUnit ? Math.round(selectedItem.branchQty) : selectedItem.branchQty}`);
+          }
         }
-        setQuantity(current);
       }
     },
     [selectedItem, quantity, doubleQuantity]
@@ -204,6 +222,9 @@ const CartScreen = React.memo(() => {
                 {selectedItem?.sellByUnit ? quantity : doubleQuantity}
               </Text>
             </View>
+            {message !== null && (
+              <Text className="text-[10px] font-bold text-red-500">{message}</Text>)
+            }
           </View>
           <TouchableOpacity
             disabled={buttonLoading}
@@ -218,27 +239,25 @@ const CartScreen = React.memo(() => {
           <TouchableOpacity
             disabled={buttonLoading}
             onPress={() => updateItem(selectedItem)}
-            className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${
-              selectedItem?.sellByUnit
-                ? quantity === '0'
-                  ? 'bg-gray border-2 border-[#fe6500]'
-                  : 'bg-[#fe6500]'
-                : doubleQuantity === '0.00'
+            className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${selectedItem?.sellByUnit
+              ? quantity === '0'
                 ? 'bg-gray border-2 border-[#fe6500]'
                 : 'bg-[#fe6500]'
-            }`}
+              : doubleQuantity === '0.00'
+                ? 'bg-gray border-2 border-[#fe6500]'
+                : 'bg-[#fe6500]'
+              }`}
           >
             <View className="flex-1 items-center">
               <Text
-                className={`text-lg font-bold ${
-                  selectedItem?.sellByUnit
-                    ? quantity === '0'
-                      ? 'text-[#fe6500]'
-                      : 'text-white'
-                    : doubleQuantity === '0.00'
+                className={`text-lg font-bold ${selectedItem?.sellByUnit
+                  ? quantity === '0'
                     ? 'text-[#fe6500]'
                     : 'text-white'
-                }`}
+                  : doubleQuantity === '0.00'
+                    ? 'text-[#fe6500]'
+                    : 'text-white'
+                  }`}
               >
                 Save
               </Text>
@@ -250,7 +269,7 @@ const CartScreen = React.memo(() => {
   }
 
   return (
-    <View className="flex flex-1">
+    <View className="flex flex-1 h-[100%]">
       <View className="top-3 flex flex-row justify-between px-2">
         <TouchableOpacity
           className="bg-gray px-1 pb-2 ml-2"
@@ -258,14 +277,14 @@ const CartScreen = React.memo(() => {
         >
           <ChevronLeft height={28} width={28} color="#fe6500" />
         </TouchableOpacity>
-        <Text className="text-black text-lg font-bold">Cart</Text>
+        <Text className="text-black text-lg font-bold">CART</Text>
         <View className="items-center mr-2">
           <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
             <Text
               className="text-white"
               style={{
                 fontSize:
-                  user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
+                  user.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
               }}
             >
               {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
@@ -273,97 +292,106 @@ const CartScreen = React.memo(() => {
           </View>
         </View>
       </View>
-      <View className="items-center bg-gray relative mt-1 pb-32">
-        <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
-        <View className="justify-between w-[90%] h-[63%]">
-          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-            {cartItems.length > 0 ? (
-              cartItems.map((cartItem, index) => (
-                <View key={index} className="py-2 border-b border-gray-300 w-full">
-                  <View className="flex flex-row items-center justify-between mt-1">
-                    <TouchableOpacity
-                      className="w-[15%] items-center"
-                      onPress={() => openInput(cartItem)}
-                    >
-                      <Text className="text-lg text-gray-800">
-                        {cartItem.sellByUnit
-                          ? Math.round(cartItem.quantity)
-                          : cartItem.quantity}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View className="flex-column items-start justify-between w-[60%]">
-                      <Text className="text-sm text-gray-800 overflow-ellipsis overflow-hidden whitespace-nowrap">
-                        {cartItem.name}
-                      </Text>
-                      <Text className="text-xs text-gray-600">₱ {cartItem.price}</Text>
-                    </View>
-                    <View className="w-[25%]">
-                      <Text className="text-sm text-gray-800 text-right">
-                        ₱ {(cartItem.price * cartItem.quantity).toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text className="text-center text-sm text-gray-500">
-                Your cart is empty
-              </Text>
-            )}
-          </ScrollView>
+      <View className="w-full h-[2px] bg-gray-500 mt-2 mb-2"></View>
+      {loading ? (
+        <View className="py-2">
+          <ActivityIndicator size="small" color="#fe6500" />
+          <Text className="text-center text-[#fe6500]">Preparing Cart...</Text>
         </View>
-        <View className="w-full h-[36%] sm:h-[37%] md:h-[37.5%] bg-gray-300 mb-2">
-          <Text className="text-right text-base font-bold text-black px-3 mr-4 mt-4">
-            SUB TOTAL: ₱ {cart?.subTotal}
-          </Text>
+      ) : (
+        <View>
+          <View className="items-center bg-gray relative mt-1 h-[60%]">
+            <View className="justify-between w-[90%] mb-5">
+              <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+                {cartItems.length > 0 ? (
+                  cartItems.map((cartItem, index) => (
+                    <View key={index} className="py-2 border-b border-gray-300 w-full">
+                      <View className="flex flex-row items-center justify-between mt-1">
+                        <TouchableOpacity
+                          className="w-[15%] items-center"
+                          onPress={() => openInput(cartItem)}
+                        >
+                          <Text className="text-lg text-gray-800">
+                            {cartItem.sellByUnit
+                              ? Math.round(cartItem.quantity)
+                              : cartItem.quantity}
+                          </Text>
+                        </TouchableOpacity>
 
-          {cart?.deliveryFee ? (
-            <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
-              <TouchableOpacity onPress={removeFee} className="p-1">
-                <Trash2 color="red" height={16} width={16} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={applyFee} className="p-1">
-                <Text className="text-sm text-[#fe6500]">{`DELIVERY FEE: ₱ ${cart.deliveryFee}`}</Text>
-              </TouchableOpacity>
+                        <View className="flex-column items-start justify-between w-[60%]">
+                          <Text className="text-sm text-gray-800 overflow-ellipsis overflow-hidden whitespace-nowrap">
+                            {cartItem.name}
+                          </Text>
+                          <Text className="text-xs text-gray-600">₱ {cartItem.price}</Text>
+                        </View>
+                        <View className="w-[25%]">
+                          <Text className="text-sm text-gray-800 text-right">
+                            ₱ {(cartItem.price * cartItem.quantity).toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text className="text-center text-sm text-gray-500">
+                    Your cart is empty
+                  </Text>
+                )}
+              </ScrollView>
             </View>
-          ) : (
-            <TouchableOpacity onPress={applyFee} className="mt-2 p-2">
-              <Text className="text-right text-sm text-[#fe6500] mr-4">
-                Add Delivery Fee
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {cart?.discount ? (
-            <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
-              <TouchableOpacity onPress={removeDiscount} className="p-1">
-                <Trash2 color="red" height={16} width={16} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={applyDiscount} className="p-1">
-                <Text className="text-sm text-[#fe6500]">{`DISCOUNT: ₱ ${cart.discount}`}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={applyDiscount} className="mt-1 p-2">
-              <Text className="text-right text-sm text-[#fe6500] mr-4">
-                Add Discount
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            disabled={buttonLoading}
-            onPress={handleDelete}
-            className="p-3 mt-10"
-          >
-            <Text className="text-right text-base text-red-500 font-bold mr-4">
-              CLEAR CART
+          </View>
+          <View className="w-full bg-gray-300 mb-2 h-[30%]">
+            <Text className="text-right text-base font-bold text-black px-3 mr-4 mt-4">
+              SUB TOTAL: ₱ {cart?.subTotal}
             </Text>
-          </TouchableOpacity>
+
+            {cart?.deliveryFee ? (
+              <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
+                <TouchableOpacity onPress={removeFee} className="p-1">
+                  <Trash2 color="red" height={16} width={16} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={applyFee} className="p-1">
+                  <Text className="text-sm text-[#fe6500]">{`DELIVERY FEE: ₱ ${cart.deliveryFee}`}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={applyFee} className="mt-2 p-2">
+                <Text className="text-right text-sm text-[#fe6500] mr-4">
+                  Add Delivery Fee
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {cart?.discount ? (
+              <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
+                <TouchableOpacity onPress={removeDiscount} className="p-1">
+                  <Trash2 color="red" height={16} width={16} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={applyDiscount} className="p-1">
+                  <Text className="text-sm text-[#fe6500]">{`DISCOUNT: ₱ ${cart.discount}`}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={applyDiscount} className="mt-1 p-2">
+                <Text className="text-right text-sm text-[#fe6500] mr-4">
+                  Add Discount
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              disabled={buttonLoading}
+              onPress={handleDelete}
+              className="p-3 mt-8"
+            >
+              <Text className="text-right text-base text-red-500 font-bold mr-4">
+                CLEAR CART
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      <View className="items-center absolute bottom-0 left-0 right-0 pb-2">
+      )}
+      < View className="items-center absolute bottom-0 left-0 right-0 pb-2 h-[8%]">
         <TouchableOpacity
           className={`w-[95%] rounded-xl p-3 items-center bg-[#fe6500] justify-center flex-row`}
           onPress={handlePayment}
@@ -375,7 +403,7 @@ const CartScreen = React.memo(() => {
           {buttonLoading && <ActivityIndicator color="white" size="small" />}
         </TouchableOpacity>
       </View>
-    </View>
+    </View >
   );
 });
 

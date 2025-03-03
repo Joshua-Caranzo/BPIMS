@@ -11,9 +11,9 @@ export type UserDto = {
 export type UserDetails = {
 	departmentId: number;
 	name: string;
-	branchName: string;
+	branchName: string | null;
 	departmentName: string;
-	branchId: number;
+	branchId: number | null;
 	hasHeadAccess: string;
 };
 

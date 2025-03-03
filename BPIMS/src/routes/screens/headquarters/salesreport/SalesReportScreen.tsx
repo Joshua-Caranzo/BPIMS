@@ -7,12 +7,13 @@ import {
     ActivityIndicator,
     StyleSheet,
     ScrollView,
+    BackHandler,
 } from 'react-native';
 import { UserDetails } from '../../../types/userType';
 import { getUserDetails } from '../../../utils/auth';
-import { BarChart } from 'react-native-gifted-charts';
+import { BarChart, LineChart } from 'react-native-gifted-charts';
 import { Menu } from 'react-native-feather';
-import { debounce, stubFalse } from 'lodash';
+import { debounce } from 'lodash';
 import { getSocketData } from '../../../utils/apiService';
 import {
     BranchDto,
@@ -27,11 +28,23 @@ const SalesReportScreen = React.memo(() => {
     const [activeCategory, setActiveCategory] = useState(0);
     const [branches, setBranches] = useState<BranchDto[]>([]);
     const [totalAmount, setTotalAmount] = useState<number>(0);
+    const [totalProfit, setTotalProfit] = useState<number>(0);
     const [loading, setLoading] = useState<boolean>(true);
     const socketRef = useRef<WebSocket | null>(null);
     const salesSocketRef = useRef<WebSocket | null>(null);
     const [totalSalesMonthly, setTotalSalesMonthly] = useState<number>(0);
     const [totalSalesYearly, setTotalSalesYearly] = useState<number>(0);
+
+    useEffect(() => {
+        const backAction = () => {
+            BackHandler.exitApp();
+            return true;
+        };
+
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+        return () => backHandler.remove();
+    }, []);
 
     useEffect(() => {
         const fetchUserDetails = async () => {
@@ -50,6 +63,8 @@ const SalesReportScreen = React.memo(() => {
                 const parsedData: DailyTransactionResponse = JSON.parse(event.data);
                 debouncedBranchData(parsedData.branches);
                 debouncedTotalAmount(parsedData.totalAmount);
+                const totalProfit = parsedData.branches.reduce((sum, branch) => sum + branch.totalProfit, 0);
+                debouncedTotalProfit(totalProfit);
             } catch (error) {
                 console.error('Error parsing WebSocket data:', error);
             } finally {
@@ -97,6 +112,14 @@ const SalesReportScreen = React.memo(() => {
         }, 100),
         []
     );
+
+    const debouncedTotalProfit = useCallback(
+        debounce((data: number) => {
+            setTotalProfit(data);
+        }, 100),
+        []
+    );
+
 
     const debouncedTotalData = useCallback(
         debounce((data: TotalSalesDto) => {
@@ -177,21 +200,22 @@ const SalesReportScreen = React.memo(() => {
             </View>
             <View className="w-full h-[2px] bg-gray-500"></View>
             {activeCategory === 0 && (
-                <View>
-                    <View className="w-full justify-center items-center bg-gray mt-4 pl-2 pr-3">
-                        <View className="w-full">
+                <ScrollView className="flex-1 bg-white p-4">
+                    <View className="w-full justify-center items-center mt-4">
+                        <View className="w-full bg-gray-50 rounded-lg p-3 shadow-sm">
                             <BarChart
+                                isAnimated
                                 noOfSections={3}
-                                frontColor="#fdbb17"
+                                frontColor="#fe6500"
                                 data={barData}
                                 yAxisThickness={0}
-                                xAxisThickness={2}
+                                xAxisThickness={1}
                                 xAxisLength={spacing * 6 - 40}
-                                xAxisColor={"gray"}
+                                xAxisColor="transparent"
                                 spacing={spacing}
-                                barWidth={60}
-                                xAxisLabelTextStyle={{ fontSize: 10, color: '#000' }}
-                                yAxisTextStyle={{ fontSize: 10, color: '#000' }}
+                                barWidth={50}
+                                xAxisLabelTextStyle={{ fontSize: 10, color: '#6B7280' }}
+                                yAxisTextStyle={{ fontSize: 10, color: '#6B7280' }}
                                 hideYAxisText
                                 hideRules
                                 disableScroll
@@ -199,34 +223,55 @@ const SalesReportScreen = React.memo(() => {
                             />
                         </View>
                     </View>
-                    <View className="items-center flex flex-row w-full mt-6 px-4">
-                        <Text className="text-lg text-gray-600 mr-2">Total Revenue:</Text>
-                        <Text className="text-lg text-[#fe6500]">₱ {totalAmount.toFixed(2)}</Text>
-                    </View>
-                    <View className="items-center flex flex-row w-full mt-1 px-4">
-                        <Text className="text-lg text-gray-600 mr-2">Total Profit:</Text>
-                        <Text className="text-lg text-[#fe6500]">₱ {totalAmount.toFixed(2)}</Text>
+
+                    <View className="mt-6 px-2">
+                        <View className="flex flex-row justify-between items-center bg-gray-50 rounded-lg p-4 shadow-sm">
+                            <Text className="text-lg text-gray-700 font-medium">Total Revenue:</Text>
+                            <Text className="text-lg text-[#fe6500] font-semibold">₱ {totalAmount.toFixed(2)}</Text>
+                        </View>
+                        <View className="flex flex-row justify-between items-center bg-gray-50 rounded-lg p-4 mt-2 shadow-sm">
+                            <Text className="text-lg text-gray-700 font-medium">Total Profit:</Text>
+                            <Text className="text-lg text-[#fe6500] font-semibold">₱ {totalProfit.toFixed(2)}</Text>
+                        </View>
                     </View>
 
-                    <ScrollView className="w-full mt-4 px-4">
-                        <Text className="text-lg text-gray-600 mr-2 font-bold">Top 5 Items</Text>
-                        <View className="flex flex-row justify-between">
+                    <View className="mt-6 mb-8">
+                        <Text className="text-xl text-gray-800 font-bold mb-4 px-2">Top 5 Items by Branch</Text>
+                        <ScrollView className="w-full">
                             {branches.map((branch, index) => (
-                                <View key={index} className="flex flex-column w-[30%]">
-                                    <Text className="text-sm">{branch.name}</Text>
+                                <View key={index} className="mb-6 bg-white rounded-lg shadow-md p-4">
+                                    <Text className="text-lg font-semibold text-gray-800 mb-3">{branch.name}</Text>
+
+                                    <View className="flex flex-row justify-between border-b border-gray-200 pb-2">
+                                        <Text className="text-sm font-medium text-gray-600 w-1/4">Rank</Text>
+                                        <Text className="text-sm font-medium text-gray-600 w-1/2">Item Name</Text>
+                                        <Text className="text-sm font-medium text-gray-600 w-1/4 text-right">Sales</Text>
+                                    </View>
+
                                     {[...Array(5)].map((_, itemIndex) => {
                                         const item = branch.topItems[itemIndex];
                                         return (
-                                            <Text key={itemIndex} className="text-xs">
-                                                {itemIndex + 1}. {item ? item.itemName : ''}
-                                            </Text>
+                                            <View key={itemIndex} className="flex flex-row justify-between py-2 border-b border-gray-100">
+                                                <Text className="text-sm text-gray-700 w-1/4">{itemIndex + 1}.</Text>
+                                                <Text className="text-sm text-gray-700 w-1/2">{item ? item.itemName : 'N/A'}</Text>
+                                                <Text className="text-sm text-gray-700 w-1/4 text-right">
+                                                    {item ? `₱ ${item.totalSales.toFixed(2)}` : '₱ 0.00'}
+                                                </Text>
+                                            </View>
                                         );
                                     })}
+
+                                    <View className="flex flex-row justify-between pt-3">
+                                        <Text className="text-sm font-semibold text-gray-800">Total Sales:</Text>
+                                        <Text className="text-sm font-semibold text-gray-800">
+                                            ₱ {branch.topItems.reduce((sum, item) => sum + (item?.totalSales || 0), 0).toFixed(2)}
+                                        </Text>
+                                    </View>
                                 </View>
                             ))}
-                        </View>
-                    </ScrollView>
-                </View>
+                        </ScrollView>
+                    </View>
+                </ScrollView>
             )}
             {activeCategory === 1 && (
                 <View>
@@ -246,6 +291,76 @@ const SalesReportScreen = React.memo(() => {
                     </View>
                     <View className="w-full h-[2px] bg-gray-500 mt-2"></View>
                 </View>
+            )}
+            {activeCategory === 2 && (
+                <ScrollView className="w-full p-4">
+                    <Text className="text-lg font-bold text-center mb-4">Sales Analysis</Text>
+
+                    <View className="bg-white p-4 rounded-lg shadow-md mb-6">
+                        <Text className="text-md font-semibold mb-2">Sales Over a Year</Text>
+                        <LineChart
+                            data={[
+                                { value: 5000, label: 'Jan' },
+                                { value: 8000, label: 'Feb' },
+                                { value: 6000, label: 'Mar' },
+                                { value: 10000, label: 'Apr' },
+                                { value: 7000, label: 'May' },
+                                { value: 9000, label: 'Jun' },
+                                { value: 12000, label: 'Jul' },
+                                { value: 15000, label: 'Aug' },
+                                { value: 11000, label: 'Sep' },
+                                { value: 13000, label: 'Oct' },
+                                { value: 14000, label: 'Nov' },
+                                { value: 16000, label: 'Dec' },
+                            ]}
+                            thickness={4}
+                            height={200}
+                            color="#4CAF50"
+                            noOfSections={3}
+                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
+                            dataPointsColor="#4CAF50"
+                            startFillColor="rgba(76, 175, 80, 0.3)"
+                            endFillColor="rgba(76, 175, 80, 0.1)"
+                            startOpacity={0.3}
+                            endOpacity={0.1}
+                            adjustToWidth
+                            hideYAxisText
+                            disableScroll
+                            spacing={22}
+                        />
+                    </View>
+
+                    <View className="bg-white p-4 rounded-lg shadow-md">
+                        <Text className="text-md font-semibold mb-2">Sales Breakdown Per Month</Text>
+                        <BarChart
+                            data={[
+                                { value: 3000, label: 'Jan' },
+                                { value: 5000, label: 'Feb' },
+                                { value: 4000, label: 'Mar' },
+                                { value: 7000, label: 'Apr' },
+                                { value: 6000, label: 'May' },
+                                { value: 7500, label: 'Jun' },
+                                { value: 9000, label: 'Jul' },
+                                { value: 11000, label: 'Aug' },
+                                { value: 9500, label: 'Sep' },
+                                { value: 12000, label: 'Oct' },
+                                { value: 13000, label: 'Nov' },
+                                { value: 14000, label: 'Dec' },
+                            ]}
+                            barWidth={12}
+                            height={200}
+                            color="blue"
+                            noOfSections={4}
+                            hideRules
+                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
+                            hideYAxisText
+                            disableScroll
+                            spacing={10}
+                        />
+                    </View>
+                </ScrollView>
             )}
         </View>
     );

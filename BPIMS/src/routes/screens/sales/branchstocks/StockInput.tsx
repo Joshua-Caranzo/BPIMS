@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Image, Alert, Keyboard, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Keyboard, ScrollView, ActivityIndicator } from 'react-native';
 import { Camera, ChevronLeft } from 'react-native-feather';
 import DatePicker from 'react-native-date-picker';
-import { BranchStockDto, StockInputDto } from '../../../types/stockType';
+import { BranchStockDto, StockInputDto, StockInputHistoryDto } from '../../../types/stockType';
 import { UserDetails } from '../../../types/userType';
 import { useNavigation } from '@react-navigation/native';
-import { BranchStackNavigationProps, BranchStockParamList } from '../../../navigation/navigation';
+import { BranchStockParamList } from '../../../navigation/navigation';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { formatTransactionDate, formatTransactionDateOnly } from '../../../utils/dateFormat';
+import { formatTransactionDateOnly } from '../../../utils/dateFormat';
 import { createStockInput, getStockHistory } from '../../../services/stockRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
+import FastImage from 'react-native-fast-image';
 
 type Props = NativeStackScreenProps<BranchStockParamList, 'StockInput'>;
 
@@ -17,8 +18,7 @@ export default function StockInputScreen({ route }: Props) {
     const item: BranchStockDto = route.params.item;
     const user: UserDetails = route.params.user;
     const [loading, setLoading] = useState<boolean>(false);
-    const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [itemHistory, setItemHistory] = useState<StockInputDto[]>([]);
+    const [itemHistory, setItemHistory] = useState<StockInputHistoryDto[]>([]);
     const [loaderMessage, setLoaderMessage] = useState<string>('Loading Stock Data...');
     const [stockInput, setStockInput] = useState<StockInputDto>();
     const navigation = useNavigation<NativeStackNavigationProp<BranchStockParamList>>();
@@ -30,7 +30,6 @@ export default function StockInputScreen({ route }: Props) {
 
     const fieldLabels: { [key: string]: string } = {
         qty: 'Quantity',
-        moq: 'MOQ',
         actualTotalQty: 'Actual Total Quantity',
         expectedTotalQty: 'Expected Total Quantity',
         deliveredBy: 'Delivered By',
@@ -74,12 +73,11 @@ export default function StockInputScreen({ route }: Props) {
         const newStock: StockInputDto = {
             id: 0,
             qty: 0,
-            moq: 0,
             actualTotalQty: 0,
             expectedTotalQty: 0,
             deliveredBy: "",
             deliveryDate: new Date,
-            branchItemId: item.id
+            branchItemId: item.id,
         };
         setStockInput(newStock);
     }
@@ -89,7 +87,6 @@ export default function StockInputScreen({ route }: Props) {
             ...prevStock ?? {
                 id: 0,
                 qty: 0,
-                moq: 0,
                 actualTotalQty: 0,
                 expectedTotalQty: 0,
                 deliveredBy: "",
@@ -105,7 +102,6 @@ export default function StockInputScreen({ route }: Props) {
             ...prevStock ?? {
                 id: 0,
                 qty: 0,
-                moq: 0,
                 actualTotalQty: 0,
                 expectedTotalQty: 0,
                 deliveredBy: "",
@@ -119,7 +115,6 @@ export default function StockInputScreen({ route }: Props) {
     function validateForm() {
         const isFormValid = (
             stockInput?.qty !== 0 &&
-            stockInput?.moq !== 0 &&
             stockInput?.actualTotalQty !== 0 &&
             stockInput?.expectedTotalQty !== 0 &&
             stockInput?.deliveredBy?.trim() !== "" &&
@@ -174,6 +169,26 @@ export default function StockInputScreen({ route }: Props) {
         };
     };
 
+    const handleBackKeypad = (field: string) => {
+        if (editingField && stockInput) {
+            setStockInput((prevStock) => ({
+                ...prevStock ?? {
+                    id: 0,
+                    qty: 0,
+                    actualTotalQty: 0,
+                    expectedTotalQty: 0,
+                    deliveredBy: "",
+                    deliveryDate: new Date,
+                    branchItemId: item.id
+                },
+                [field]: 0,
+            }));
+        }
+        setInputMode(false);
+        setEditingField(null);
+    };
+
+
     return (
         <View className="flex flex-1">
             {isInputMode && editingField ? (
@@ -181,7 +196,7 @@ export default function StockInputScreen({ route }: Props) {
                     <View className='top-3 flex flex-row px-2'>
                         <TouchableOpacity
                             className="bg-gray px-1 pb-2 ml-2"
-                            onPress={() => setInputMode(false)}
+                            onPress={() => handleBackKeypad(editingField)}
                         >
                             <ChevronLeft height={28} width={28} color={"#fe6500"} />
                         </TouchableOpacity>
@@ -205,15 +220,16 @@ export default function StockInputScreen({ route }: Props) {
                     </View>
                     <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
                         <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
-                        <TouchableOpacity disabled={!stockInput?.[editingField]} onPress={() => setInputMode(false)} className="w-[95%] rounded-xl p-3 flex flex-row items-center bg-[#fe6500]">
-                            <View className="flex-1 flex flex-row items-center justify-center">
-                                <Text className="text-lg text-center font-bold text-white">
+                        <TouchableOpacity disabled={!stockInput?.[editingField]} onPress={() => setInputMode(false)}
+                            className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!stockInput?.[editingField] ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}>
+                            < View className="flex-1 flex flex-row items-center justify-center">
+                                <Text className={`text-lg text-center font-bold ${!stockInput?.[editingField] ? 'text-[#fe6500]' : 'text-white'}`}>
                                     Done
                                 </Text>
                             </View>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </View >
             ) : (
                 <View className="flex flex-1">
                     <View className='top-3 flex flex-row justify-between px-2'>
@@ -241,10 +257,11 @@ export default function StockInputScreen({ route }: Props) {
                     <View className="px-4 w-full mt-6">
                         <View className="w-full flex items-center">
                             <Text className="text-black text-sm">{item.name}</Text>
-                            <View className='w-full mt-2'>
-                                {fileUrl ? (
-                                    <Image source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
-                                ) : (
+                            <View className="w-full flex items-center mt-2 mb-2">
+                                {item.imagePath && item.imageUrl ? (
+                                    <FastImage source={{
+                                        uri: item.imageUrl, priority: FastImage.priority.high,
+                                    }} className="w-24 h-24 rounded-lg" />) : (
                                     <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                         <Camera color={"white"} height={32} width={32} />
                                         <Text className='text-white text-xs mt-1'>No Image</Text>
@@ -270,15 +287,11 @@ export default function StockInputScreen({ route }: Props) {
                                     </View>
                                     <View className='w-1/2'>
                                         <Text className="text-red-500 text-sm font-bold">MOQ</Text>
-                                        <TouchableOpacity
+                                        <View
                                             className="border-b border-gray-400 py-2"
-                                            onPress={() => {
-                                                setEditingField('moq');
-                                                setInputMode(true);
-                                            }}
                                         >
-                                            <Text className="text-black">{item.sellByUnit ? stockInput.moq : stockInput.moq.toFixed(2)}</Text>
-                                        </TouchableOpacity>
+                                            <Text className="text-black">{item.sellByUnit ? item.moq : Number((item.moq || 0)).toFixed(2)}</Text>
+                                        </View>
                                     </View>
                                 </View>
 
@@ -293,13 +306,15 @@ export default function StockInputScreen({ route }: Props) {
                                             open={openDate}
                                             date={stockInput?.deliveryDate}
                                             mode="date"
+                                            buttonColor='#fe6500'
+                                            theme='light'
+                                            dividerColor='#fe6500'
                                             onConfirm={(date) => {
                                                 setOpenDate(false)
                                                 setStockInput(stock => ({
                                                     ...stock ?? {
                                                         id: 0,
                                                         qty: 0,
-                                                        moq: 0,
                                                         actualTotalQty: 0,
                                                         expectedTotalQty: 0,
                                                         deliveredBy: "",
@@ -321,7 +336,8 @@ export default function StockInputScreen({ route }: Props) {
                                             editable={true}
                                             className="border-b border-gray-400 py-2 text-black"
                                             placeholder="Enter Name"
-                                            placeholderTextColor="gray"
+                                            placeholderTextColor="#8a8a8a"
+                                            selectionColor="#fe6500"
                                             onChangeText={(text) => handleChange("deliveredBy", text)}
                                         />
                                     </View>
@@ -356,18 +372,27 @@ export default function StockInputScreen({ route }: Props) {
                             </View>
                         )}
 
-                        <View className="mt-4">
-                            <Text className="text-gray-700 text-sm font-bold">Item History</Text>
-                            <ScrollView className="w-full mb-8 mt-1">
-                                {itemHistory.length > 0 && itemHistory.map((order) => (
-                                    <View key={order.id} className='flex flex-row justify-between'>
-                                        <Text className='text-black text-xs'>{item.sellByUnit ? Math.round(order.qty) : order.qty}</Text>
-                                        <Text className='text-black text-xs'>{order.deliveredBy}</Text>
-                                        <Text className='text-black text-xs'>{formatTransactionDateOnly(order.deliveryDate.toString())}</Text>
+                        {itemHistory.length > 0 && (
+                            <View className="flex flex-column mt-2 h-[35vh] md:h-[45vh] lg:h-[55vh] pb-2">
+                                <Text className="text-gray-700 text-sm font-bold">Item History</Text>
+                                <ScrollView className="w-full mb-8 mt-1">
+                                    <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
+                                        <Text className="text-black text-xs font-semibold flex-1 text-left">Delivered By</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-center">Amount</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-right">Date</Text>
                                     </View>
-                                ))}
-                            </ScrollView>
-                        </View>
+
+                                    {itemHistory.map((history) => (
+                                        <TouchableOpacity onPress={() => navigation.navigate('StockHistory', { item, user, history })} key={history.id} className="flex flex-row justify-between py-2 border-b border-gray-200">
+                                            <Text className="text-black text-xs flex-1 text-left">{history.deliveredBy}</Text>
+                                            <Text className="text-black text-xs flex-1 text-center">{item.sellByUnit ? Math.round(history.qty) : history.qty}</Text>
+                                            <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(history.deliveryDate.toString())}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )
+                        }
                     </View>
                     {!keyboardVisible && (
                         <View className='items-center absolute bottom-0 left-0 right-0 pb-2'>
@@ -376,8 +401,11 @@ export default function StockInputScreen({ route }: Props) {
                                 className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                                 disabled={!isValid}
                             >
-                                <View className="flex-1 items-center">
-                                    <Text className={`font - bold ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
+                                <View className="flex-1 flex flex-row items-center justify-center">
+                                    <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
+                                    {loading && (
+                                        <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                                    )}
                                 </View>
                             </TouchableOpacity>
                         </View>

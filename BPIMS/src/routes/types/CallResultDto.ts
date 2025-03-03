@@ -3,5 +3,10 @@ export type CallResultDto<T> = {
 	message: string;
 	data: T;
 	data2: number;
-	totalCount:number | null;
+	totalCount: number | null;
+};
+
+export type CallResultFileDto<T> = {
+    data: T;
+    headers: Record<string, string>; // ✅ FIX: Ensure headers are stored as an object
 };

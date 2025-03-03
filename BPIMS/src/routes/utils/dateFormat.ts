@@ -56,3 +56,16 @@ export function capitalizeFirstLetter(name: string): string {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
+
+export function formatPrice(value: number | string): string {
+    if (typeof value === "string") {
+        value = parseFloat(value);
+    }
+
+    if (isNaN(value)) {
+        return "0"; 
+    }
+
+    return value.toFixed(2);
+}
+

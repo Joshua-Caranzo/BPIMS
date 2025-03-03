@@ -8,9 +8,9 @@ export function hashPassword(password: string): string {
 
 export async function setUserLogIn(user: UserDto) {
     await AsyncStorage.setItem('username', user.name);
-    await AsyncStorage.setItem('departmentId', user.departmentId.toString());
-    await AsyncStorage.setItem('branchName', user.branchName);
-    await AsyncStorage.setItem('branchId', user.branchId.toString());
+    await AsyncStorage.setItem('departmentId', user.departmentId?.toString() ?? '');
+    await AsyncStorage.setItem('branchName', user.branchName ?? '');
+    await AsyncStorage.setItem('branchId', user.branchId !== null && user.branchId !== undefined ? user.branchId.toString() : '');
     await AsyncStorage.setItem('departmentName', user.departmentName);
     await AsyncStorage.setItem('authToken', user.token);
     await AsyncStorage.setItem('hasHeadAccess', user.hasHeadAccess.toString());
@@ -33,18 +33,19 @@ export async function getUserDetails() {
     const storeBranchId = await AsyncStorage.getItem('branchId');
     const storeAccess = await AsyncStorage.getItem('hasHeadAccess');
 
-    if (storedDeptId && storedUserName && storedBranchName && storedDepartmentName && storeBranchId && storeAccess) {
+    if (storedDeptId && storedUserName && storedDepartmentName && storeAccess) {
         let user: UserDetails = {
             departmentId: parseInt(storedDeptId, 10),
             name: storedUserName,
-            branchName: storedBranchName,
+            branchName: storedBranchName ?? null,
             departmentName: storedDepartmentName,
-            branchId: parseInt(storeBranchId, 10),
+            branchId: storeBranchId ? parseInt(storeBranchId, 10) : null,
             hasHeadAccess: storeAccess
         };
         return user;
     }
 }
+
 
 export async function logOutUser() {
     try {

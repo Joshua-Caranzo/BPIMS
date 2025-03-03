@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { logOutUser } from './auth';
 import { VITE_MAIN_API } from '@env';
+import { Alert } from 'react-native';
 
 const MAIN_API_URL = VITE_MAIN_API;
+
 const baseAxiosInstance = axios.create({
   baseURL: MAIN_API_URL,
   headers: {
@@ -29,13 +31,18 @@ baseAxiosInstance.interceptors.request.use(
 );
 
 baseAxiosInstance.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
+  (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    if (!error.response) {
+      Alert.alert(
+        'Network Error',
+        'Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    } else if (error.response.status === 401) {
       await logOutUser();
     }
+
     return Promise.reject(error);
   }
 );
