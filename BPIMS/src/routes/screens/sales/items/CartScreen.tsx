@@ -397,9 +397,11 @@ const CartScreen = React.memo(({ route }: Props) => {
           onPress={handlePayment}
           disabled={buttonLoading}
         >
-          <Text className="font-bold text-center text-white text-lg">
-            TOTAL: ₱ {totalAmount}
-          </Text>
+          <View className="flex-1 items-center">
+            <Text className="font-bold text-center text-white text-lg">
+              TOTAL: ₱ {totalAmount}
+            </Text>
+          </View>
           {buttonLoading && <ActivityIndicator color="white" size="small" />}
         </TouchableOpacity>
       </View>

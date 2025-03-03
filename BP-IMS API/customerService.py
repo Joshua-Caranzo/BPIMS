@@ -48,7 +48,7 @@ async def getCustomer(id):
                 'branchId': customer.branchId,
                 'branch': branch.name if branch else None,
                 'fileName': customer.fileName,
-                "imageUrl": f"{base_url}/getCustomerImage?fileName={customer.fileName}" if customer.fileName else None,
+                "fileUrl": f"{base_url}/getCustomerImage?fileName={customer.fileName}" if customer.fileName else None,
             }
 
             request = {

@@ -5,23 +5,24 @@ import DatePicker from 'react-native-date-picker';
 import { ItemStock, StockInputDto, StockInputHistoryDto } from '../../../types/stockType';
 import { UserDetails } from '../../../types/userType';
 import { useNavigation } from '@react-navigation/native';
-import { StockMonitorParamList } from '../../../navigation/navigation';
+import { StockMonitorParamList, WhStockStackParamList } from '../../../navigation/navigation';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { formatTransactionDateOnly } from '../../../utils/dateFormat';
 import { createStockInput, getStockHistory } from '../../../services/stockRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import FastImage from 'react-native-fast-image';
+import { WHStockDto, WHStockInputDto, WHStockInputHistoryDto } from '../../../types/whType';
+import { createWHStockInput, getWHStockHistory } from '../../../services/whRepo';
 
-type Props = NativeStackScreenProps<StockMonitorParamList, 'StockInput'>;
+type Props = NativeStackScreenProps<WhStockStackParamList, 'StockInput'>;
 
 const StockInputScreen = memo(({ route }: Props) => {
-    const item: ItemStock = route.params.item;
+    const item: WHStockDto = route.params.item;
     const user: UserDetails = route.params.user;
-    const branchItemId: number = route.params.branchId;
     const [loading, setLoading] = useState<boolean>(false);
-    const [itemHistory, setItemHistory] = useState<StockInputHistoryDto[]>([]);
-    const [stockInput, setStockInput] = useState<StockInputDto>();
-    const navigation = useNavigation<NativeStackNavigationProp<StockMonitorParamList>>();
+    const [itemHistory, setItemHistory] = useState<WHStockInputHistoryDto[]>([]);
+    const [stockInput, setStockInput] = useState<WHStockInputDto>();
+    const navigation = useNavigation<NativeStackNavigationProp<WhStockStackParamList>>();
     const [openDate, setOpenDate] = useState(false);
     const [isValid, setIsValid] = useState<boolean>(false);
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
@@ -52,10 +53,11 @@ const StockInputScreen = memo(({ route }: Props) => {
         setLoading(true);
         FastImage.clearMemoryCache();
         FastImage.clearDiskCache();
-        const response = await getStockHistory(branchItemId);
+        const response = await getWHStockHistory(item.id);
+        console.log(response)
         setItemHistory(response.data);
         setLoading(false);
-    }, [branchItemId]);
+    }, [item.id]);
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -72,17 +74,16 @@ const StockInputScreen = memo(({ route }: Props) => {
     }, []);
 
     const newStockInput = useCallback(() => {
-        const newStock: StockInputDto = {
-            id: 0,
+        const newStock: WHStockInputDto = {
+            id: item.id,
             qty: 0,
             actualTotalQty: 0,
             expectedTotalQty: 0,
             deliveredBy: "",
-            deliveryDate: new Date(),
-            branchItemId: branchItemId,
+            deliveryDate: new Date()
         };
         setStockInput(newStock);
-    }, [branchItemId]);
+    }, []);
 
     const handleChange = useCallback((field: string, value: string) => {
         setStockInput((prevStock) => ({
@@ -127,7 +128,7 @@ const StockInputScreen = memo(({ route }: Props) => {
 
     const saveStockInput = useCallback(async () => {
         if (stockInput) {
-            await createStockInput(stockInput);
+            await createWHStockInput(stockInput);
             newStockInput();
             await getStockInputHistory();
         }
@@ -209,7 +210,7 @@ const StockInputScreen = memo(({ route }: Props) => {
             <View className='top-3 flex flex-row justify-between px-2'>
                 <TouchableOpacity
                     className="bg-gray px-1 pb-2 ml-2"
-                    onPress={() => navigation.push('StockMonitor')}
+                    onPress={() => navigation.push('WHScreen')}
                 >
                     <ChevronLeft height={28} width={28} color={"#fe6500"} />
                 </TouchableOpacity>

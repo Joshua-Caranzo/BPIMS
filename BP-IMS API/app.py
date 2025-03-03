@@ -7,6 +7,7 @@ import transactionService
 import customerService
 import fileService
 import socketService
+import warehouseService
 from db import DATABASE_CONFIG
 import asyncio
 import uvicorn
@@ -186,6 +187,22 @@ async def getTransactionHistory():
     response = await transactionService.getTransactionHistory(int(transactionId)) 
     return response
 
+@app.route('/getWHStocks', methods=['GET'])
+@token_required
+async def getWHStocks():
+    categoryId = request.args.get('categoryId')
+    page = request.args.get('page')
+    search = request.args.get('search')
+    response = await warehouseService.getWHStocks(int(categoryId), int(page), search) 
+    return response
+
+@app.route('/getWHStockHistory', methods=['GET'])
+@token_required
+async def getWHStockHistory():
+    id = request.args.get('itemId')
+    response = await warehouseService.getStockHistory(id) 
+    return response
+
 """ POST AND PUT METHODS """
 
 @app.route('/loginUser', methods=['POST'])
@@ -330,6 +347,14 @@ async def deleteItem():
     response = await itemService.deleteItem(int(id)) 
     return response
 
+@app.route('/createWHStockInput', methods=['POST'])
+@token_required
+async def createWHStockInput():
+    data = await request.json
+    stockInput = data.get('stockInput')
+    response = await warehouseService.createStockInput(stockInput) 
+    return response
+
 """ SOCKET METHODS """
 
 @app.websocket('/ws/criticalItems')
@@ -358,6 +383,10 @@ async def totalSalesHQ():
 @app.websocket('/ws/criticalItemsHQ')
 async def critical_items_ws_HQ():
     await socketService.criticalItemsHQ(websocket)
+
+@app.websocket('/ws/criticalItemsWH')
+async def critical_items_ws_WH():
+    await socketService.criticalItemsWH(websocket)
 
 if __name__ == '__main__':
     asyncio.run(init())

@@ -20,6 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera, CameraOptions, ImageLibraryOptions, MediaType } from 'react-native-image-picker';
 import { Camera, ChevronLeft, Trash2 } from 'react-native-feather';
 import { formatTransactionDate } from '../../../utils/dateFormat';
+import FastImage from 'react-native-fast-image';
 
 type Props = NativeStackScreenProps<CustomerHQStackParamList, 'CustomerView'>;
 
@@ -65,11 +66,13 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
 
     const fetchCustomer = useCallback(async () => {
         setLoading(true);
+
         if (customerId != 0 && customerId != null) {
             const response = await getCustomer(customerId);
             if (response) {
                 setCustomer(response.data.customer);
                 setOrderHistory(response.data.orderHistory ?? []);
+                setFileUrl(response.data.customer.fileUrl)
             }
         } else if (customerId == 0) {
             const newCustomer: CustomerDto = {
@@ -193,7 +196,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 const today = new Date();
                 const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
                     .toString()
-                    .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`; // Format as DDMMYY
+                    .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
                 const firstName = customer.name?.split(' ')[0] || 'Unknown';
                 formData.append('file', {
                     uri: fileUrl,
@@ -278,7 +281,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                             </View>
                             <TouchableOpacity onPress={handleImageSelect}>
                                 {fileUrl ? (
-                                    <Image source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
+                                    <FastImage source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
                                 ) : (
                                     <View className="w-24 h-24 bg-gray-500 rounded-lg justify-center items-center">
                                         <Camera color="white" height={32} width={32} />

@@ -56,6 +56,8 @@ const ItemViewScreen = ({ route }: Props) => {
 
     const fetchItem = useCallback(async () => {
         setLoading(true);
+        FastImage.clearMemoryCache();
+        FastImage.clearDiskCache();
         if (item.id !== 0) {
             setEditingItem(item);
         } else {

@@ -27,7 +27,6 @@ async def getCategoriesHQ():
         for category in categories
     ])
     
-    print(category_list)
     return create_response(True, 'Categories Successfully Retrieved', category_list), 200
 
 

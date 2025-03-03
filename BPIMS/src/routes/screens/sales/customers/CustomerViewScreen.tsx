@@ -65,16 +65,15 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
 
     const fetchCustomer = useCallback(async () => {
         setLoading(true);
+        FastImage.clearMemoryCache();
+        FastImage.clearDiskCache();
         if (customerId != 0 && customerId != null) {
             const response = await getCustomer(customerId);
             if (response) {
                 setCustomer(response.data.customer);
                 setName(response.data.customer.name)
                 setOrderHistory(response.data.orderHistory ?? []);
-                if (response.data.customer.fileName) {
-                    const imageResponse = await getCustomerImage(response.data.customer.fileName);
-                    setFileUrl(imageResponse);
-                }
+                setFileUrl(response.data.customer.fileUrl)
             }
         } else if (customerId == 0 && user) {
             const newCustomer: CustomerDto = {
@@ -384,12 +383,13 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                         disabled={!isValid}
                     >
-                        <View className="flex-1 flex flex-row items-center justify-center">
+                        <View className="flex-1 items-center">
                             <Text className={`font-bold ${!isValid ? 'text-[#fe6500]' : 'text-white'} text-lg`}>SAVE</Text>
-                            {loading && (
-                                <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
-                            )}
                         </View>
+
+                        {loading && (
+                            <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                        )}
                     </TouchableOpacity>
                 </View>
             )}

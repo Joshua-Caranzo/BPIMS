@@ -39,6 +39,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
+            
             const branchResponse = await getBranches();
             const departmentResponse = await getDepartments();
             setBranches(branchResponse);

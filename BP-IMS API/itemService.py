@@ -316,6 +316,7 @@ async def getProductHQ(itemId):
 
 async def createStockInput(stockInput):
     branchItem = await BranchItem.get_or_none(id=stockInput['branchItemId'])
+    whItem = await WareHouseItem.get_or_none(itemId = branchItem.itemId)
 
     if not branchItem:
         return create_response(False, 'Item not found', None, None), 200
@@ -329,9 +330,10 @@ async def createStockInput(stockInput):
         branchItemId=branchItem.id
     )
     branchItem.quantity += Decimal(str(stockInput['qty']))
-
+    whItem.quantity -= Decimal(str(stockInput['qty']))
     await branchItem.save()
-
+    await whItem.save()
+    
     return create_response(True, "Success", None, None), 200
 
 async def saveItem(data, file):
