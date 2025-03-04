@@ -390,4 +390,4 @@ async def critical_items_ws_WH():
 
 if __name__ == '__main__':
     asyncio.run(init())
-    uvicorn.run(app, host="192.168.1.30", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
