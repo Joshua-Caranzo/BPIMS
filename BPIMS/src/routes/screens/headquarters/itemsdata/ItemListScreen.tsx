@@ -37,7 +37,7 @@ const ItemListScreen = () => {
         cost: 0,
         isManaged: false,
         imagePath: null,
-        sellbyUnit: false,
+        sellByUnit: false,
         moq: 0,
         categoryName: "",
         unitOfMeasure: "",
@@ -126,9 +126,9 @@ const ItemListScreen = () => {
         >
             <View className="w-full items-center border-b border-gray-500 w-full pl-1 pr-2 justify-between flex flex-row">
                 <View className=" w-[20%] bg-yellow-500 justify-center items-center h-10 w-16 mb-1 rounded-lg">
-                    {item.imagePath && item.imageUrl ? (
+                    {item.imagePath ? (
                         <FastImage
-                            source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                            source={{ uri: item.imagePath, priority: FastImage.priority.high }}
                             style={{ width: 64, height: 40, borderRadius: 8 }}
                             resizeMode={FastImage.resizeMode.cover}
                         />

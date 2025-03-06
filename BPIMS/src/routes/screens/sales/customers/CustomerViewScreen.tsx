@@ -18,6 +18,7 @@ import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, M
 import { Camera, ChevronLeft, Trash2 } from 'react-native-feather';
 import { formatTransactionDate } from '../../../utils/dateFormat';
 import FastImage from 'react-native-fast-image';
+import RNFS from 'react-native-fs';
 
 type Props = NativeStackScreenProps<CustomerStackParamList, 'CustomerView'>;
 
@@ -36,6 +37,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     const [nameExists, setNameExists] = useState<boolean>(false);
     const [isValid, setIsValid] = useState<boolean>(false);
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -73,7 +75,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 setCustomer(response.data.customer);
                 setName(response.data.customer.name)
                 setOrderHistory(response.data.orderHistory ?? []);
-                setFileUrl(response.data.customer.fileUrl)
+                setFileUrl(response.data.customer.fileName)
             }
         } else if (customerId == 0 && user) {
             const newCustomer: CustomerDto = {
@@ -99,16 +101,30 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
             mediaType: 'photo' as MediaType,
-            quality: 1,
+            quality: 0.1,
         };
 
-        const handleResponse = (response: any) => {
+        const handleResponse = async (response: any) => {
             if (response.didCancel) return;
             if (response.errorCode) {
                 console.error('ImagePicker Error:', response.errorMessage);
                 Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
-                setFileUrl(response.assets[0].uri || null);
+                const fileUri = response.assets[0].uri;
+
+                const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
+                const fileSize = fileInfo.size;
+
+                if (fileSize > MAX_FILE_SIZE) {
+                    Alert.alert(
+                        'File Too Large',
+                        `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
+                        [{ text: 'OK' }]
+                    );
+                    setFileUrl(null);
+                } else {
+                    setFileUrl(fileUri);
+                }
             } else {
                 Alert.alert('No image selected');
             }
@@ -145,7 +161,11 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
             const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase() && c.id !== customer.id);
             setNameExists(exists);
         }
-    }, [customers]);
+        else if (!customer) {
+            const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase());
+            setNameExists(exists);
+        }
+    }, [customers, customer]);
 
     const handleContactNumber1Change = useCallback((text: string) => {
         setCustomer((prevCustomer) => ({
@@ -327,6 +347,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                                 onChangeText={handleContactNumber1Change}
                                 placeholderTextColor="#8a8a8a"
                                 selectionColor="#fe6500"
+                                keyboardType='numeric'
                             />
                         </View>
                         <View className='w-full'>
@@ -339,6 +360,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                                 onChangeText={handleContactNumber2Change}
                                 placeholderTextColor="#8a8a8a"
                                 selectionColor="#fe6500"
+                                keyboardType='numeric'
                             />
                         </View>
                         {customer.id !== 0 && (

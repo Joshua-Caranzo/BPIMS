@@ -17,6 +17,8 @@ import { CustomerDto } from '../../../types/customerType';
 import { saveCustomer } from '../../../services/customerRepo';
 import { updateCustomer } from '../../../services/salesRepo';
 import { ItemStackParamList } from '../../../navigation/navigation';
+import RNFS from 'react-native-fs';
+import FastImage from 'react-native-fast-image';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'NewCustomer'>;
 
@@ -40,6 +42,7 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
   const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
   const [nameExists, setNameExists] = useState<boolean>(false);
   const [isValid, setIsValid] = useState<boolean>(false);
+  const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -71,16 +74,30 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
   const handleImageSelect = useCallback(() => {
     const options: CameraOptions & ImageLibraryOptions = {
       mediaType: 'photo' as MediaType,
-      quality: 1,
+      quality: 0.1,
     };
 
-    const handleResponse = (response: any) => {
+    const handleResponse = async (response: any) => {
       if (response.didCancel) return;
       if (response.errorCode) {
         console.error('ImagePicker Error:', response.errorMessage);
         Alert.alert('An error occurred while selecting an image.');
       } else if (response.assets && response.assets.length > 0) {
-        setFileUrl(response.assets[0].uri || null);
+        const fileUri = response.assets[0].uri;
+
+        const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
+        const fileSize = fileInfo.size;
+
+        if (fileSize > MAX_FILE_SIZE) {
+          Alert.alert(
+            'File Too Large',
+            `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
+            [{ text: 'OK' }]
+          );
+          setFileUrl(null);
+        } else {
+          setFileUrl(fileUri);
+        }
       } else {
         Alert.alert('No image selected');
       }
@@ -104,9 +121,15 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
       name: text,
     }));
 
-    const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase());
-    setNameExists(exists);
-  }, [customers]);
+    if (customer) {
+      const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase() && c.id !== customer.id);
+      setNameExists(exists);
+    }
+    else if (!customer) {
+      const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase());
+      setNameExists(exists);
+    }
+  }, [customers, customer]);
 
   const handleContactNumber1Change = useCallback((text: string) => {
     setCustomer((prevCustomer) => ({
@@ -182,7 +205,9 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
           </View>
           <TouchableOpacity onPress={handleImageSelect}>
             {fileUrl ? (
-              <Image source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
+              <FastImage source={{
+                uri: fileUrl, priority: FastImage.priority.high,
+              }} className="w-24 h-24 rounded-lg" />
             ) : (
               <View className="w-24 h-24 bg-gray-500 rounded-lg justify-center items-center">
                 <Camera color="white" height={32} width={32} />

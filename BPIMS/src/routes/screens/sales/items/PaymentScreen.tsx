@@ -35,9 +35,9 @@ const PaymentScreen = React.memo(({ route }: Props) => {
 
     const handleNext = useCallback(() => {
         if (cart && user) {
-            navigation.navigate('Transaction', { cart, user });
+            navigation.navigate('Transaction', { cart, user, total });
         }
-    }, [cart, user, navigation]);
+    }, [cart, user, navigation, total]);
 
     const handleAddCustomer = useCallback(() => {
         navigation.navigate('CustomerList', { user });

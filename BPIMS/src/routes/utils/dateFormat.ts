@@ -1,3 +1,5 @@
+import RNFS from 'react-native-fs';
+
 export function formatTransactionDate(dateString: string): string {
     const date = new Date(dateString);
 
@@ -63,9 +65,19 @@ export function formatPrice(value: number | string): string {
     }
 
     if (isNaN(value)) {
-        return "0"; 
+        return "0";
     }
 
     return value.toFixed(2);
 }
+
+export const normalizeUri = async (uri: string) => {
+    if (uri.startsWith('file://')) {
+        return uri;
+    }
+    const filePath = `${RNFS.TemporaryDirectoryPath}/${new Date().getTime()}.jpg`;
+    await RNFS.copyFile(uri, filePath);
+    console.log(filePath);
+    return `file://${filePath}`;
+};
 

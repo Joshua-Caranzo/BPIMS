@@ -32,7 +32,7 @@ const UserListScreen = React.memo(() => {
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
-        
+
         const userDetails = await getUserDetails();
         setUser(userDetails);
         const response = await getUsers(search);
@@ -50,8 +50,8 @@ const UserListScreen = React.memo(() => {
         inputRef.current?.focus();
     }, []);
 
-    const handleViewUser = useCallback((id: number | null) => {
-        navigation.navigate('UserView', { id: id || 0 });
+    const handleViewUser = useCallback((id: number | null, name: string | null) => {
+        navigation.navigate('UserView', { id: id || 0, name: name || "" });
     }, [navigation]);
 
     const filteredUsers = useMemo(() => {
@@ -100,21 +100,21 @@ const UserListScreen = React.memo(() => {
                             returnKeyType="search"
                         />
                     </View>
-                    <TouchableOpacity className="mr-2" onPress={() => handleViewUser(null)}>
+                    <TouchableOpacity className="mr-2" onPress={() => handleViewUser(null, null)}>
                         <PlusCircle width={18} height={18} color="#fe6500" />
                     </TouchableOpacity>
                 </View>
                 {loading ? (
-                    <View className="flex flex-1 justify-center items-center mt-6">
+                    <View className="mt-6">
                         <ActivityIndicator size="small" color="#fe6500" />
-                        <Text className="text-[#fe6500] mt-2">Searching...</Text>
+                        <Text className="text-red-500 mt-2">Getting Users...</Text>
                     </View>
                 ) : (
                     <ScrollView className="w-full mb-8">
                         {filteredUsers.map((user) => (
                             <TouchableOpacity
                                 key={user.id}
-                                onPress={() => handleViewUser(user.id)}
+                                onPress={() => handleViewUser(user.id, user.name)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
                                 <Text className="text-black text-base">{user.name}</Text>

@@ -57,9 +57,9 @@ const CustomerListScreen = React.memo(({ route }: Props) => {
 
   const navigateToUser = useCallback(() => {
     if (user) {
-      navigation.navigate('NewCustomer', { user, customers: customers });
+      navigation.navigate('NewCustomer', { user, customers });
     }
-  }, [user, navigation]);
+  }, [user, navigation, customers]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) =>

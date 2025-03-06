@@ -20,7 +20,7 @@ import { ObjectDto, UserListDto } from '../../../types/userType';
 type Props = NativeStackScreenProps<UsersHQParamList, 'UserView'>;
 
 const UserViewScreen = React.memo(({ route }: Props) => {
-    let { id } = route.params;
+    let { id, name } = route.params;
 
     const [user, setUser] = useState<UserListDto | null>(null);
     const [branches, setBranches] = useState<ObjectDto[]>([]);
@@ -30,6 +30,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     const [isValid, setIsValid] = useState<boolean>(false);
     const [confirmPassword, setConfirmPassword] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string>('');
+    const [branchErrorMessage, setBranchErrorMessage] = useState<string>('');
     const [emailErrorMessage, setEmailErrorMessage] = useState<string>('');
     const navigation = useNavigation<NativeStackNavigationProp<UsersHQParamList>>();
     const [isPasswordVisible, setPasswordVisible] = useState(false);
@@ -39,7 +40,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            
+
             const branchResponse = await getBranches();
             const departmentResponse = await getDepartments();
             setBranches(branchResponse);
@@ -95,23 +96,31 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     };
 
     function validateForm() {
-        let passwordsMatch = true
-        if (user?.id == 0)
+        let passwordsMatch = true;
+        if (user?.id === 0)
             passwordsMatch = user?.password === confirmPassword;
-        let emailValid = true
+
+        let emailValid = true;
         if (user?.email)
             emailValid = typeof user?.email === 'string' && user.email.endsWith('@gmail.com');
 
         setEmailErrorMessage(emailValid ? '' : 'Invalid Email Address');
-
         setErrorMessage(passwordsMatch ? '' : 'Passwords do not match');
+
+        let branchValid = true;
+        if (user?.departmentId === 1) {
+            branchValid = !!user?.branchId;
+        }
+
+        setBranchErrorMessage(branchValid ? '' : 'Branch is required when Department ID is 1');
 
         const isFormValid = (
             user?.name !== '' &&
             user?.email !== '' &&
             user?.departmentId !== 0 &&
             passwordsMatch &&
-            emailValid
+            emailValid &&
+            branchValid
         );
 
         setIsValid(isFormValid);
@@ -127,10 +136,10 @@ const UserViewScreen = React.memo(({ route }: Props) => {
 
             if (user.id === 0) {
                 const response = await addUser(user);
-                navigation.replace('UserView', { id: response.data });
+                navigation.replace('UserView', { id: response.data, name });
             } else {
                 const response = await editUser(user);
-                navigation.replace('UserView', { id: response.data });
+                navigation.replace('UserView', { id: response.data, name: user.name });
             }
             setLoading(false);
         }
@@ -177,7 +186,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
         return (
             <View className="flex flex-1 justify-center items-center mt-10">
                 <ActivityIndicator size="small" color="#fe6500" />
-                <Text className="text-[#fe6500] mt-2">Loading...</Text>
+                <Text className="text-[#fe6500] mt-2">Getting User Details...</Text>
             </View>
         );
     }
@@ -188,7 +197,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
                 <TouchableOpacity className="mr-2" onPress={() => navigation.navigate('Users')}>
                     <ChevronLeft height={28} width={28} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="font-bold text-lg">{user?.id !== 0 ? user?.name : 'New User'}</Text>
+                <Text className="font-bold text-lg">{user?.id !== 0 ? name : 'New User'}</Text>
             </View>
 
             <View className="bg-gray-200 h-[2px] w-full mb-4"></View>

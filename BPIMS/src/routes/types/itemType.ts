@@ -9,7 +9,7 @@ export type ItemHQDto = {
     isManaged: boolean;
     imagePath: string | null;
     imageUrl: string | null;
-    sellbyUnit: boolean;
+    sellByUnit: boolean;
     moq: number;
     criticalValue: number;
     unitOfMeasure: string;

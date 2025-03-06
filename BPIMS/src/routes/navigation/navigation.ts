@@ -26,7 +26,7 @@ export type ItemStackParamList = {
     DeliveryFee: { deliveryFee: string, user: UserDetails };
     Discount: { discount: string, subTotal: number, user: UserDetails };
     Payment: { user: UserDetails };
-    Transaction: { cart: Cart, user: UserDetails };
+    Transaction: { cart: Cart, user: UserDetails, total: number };
     SlipOrder: { transaction: TransactionDto, transactionItems: TransactionItemsDto[] };
     CustomerList: { user: UserDetails };
     NewCustomer: { user: UserDetails, customers: CustomerListDto[] };
@@ -63,7 +63,7 @@ export type SalesReportHQParamList = {
 
 export type UsersHQParamList = {
     Users: undefined;
-    UserView: { id: number };
+    UserView: { id: number, name: string };
 }
 
 export type ItemsHQParamList = {
@@ -73,7 +73,7 @@ export type ItemsHQParamList = {
 
 export type StockMonitorParamList = {
     StockMonitor: undefined;
-    StockInput: { item: ItemStock, user: UserDetails, branchId: number }
+    StockInput: { item: ItemStock, user: UserDetails, branchId: number | null, whId: number | null, whQty: number | null }
 }
 
 export type CustomerHQStackParamList = {

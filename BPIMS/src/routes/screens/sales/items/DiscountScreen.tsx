@@ -161,7 +161,7 @@ const DiscountScreen = React.memo(({ route }: Props) => {
               className={`text-lg font-bold ${disc === '0.00' ? 'text-[#fe6500]' : 'text-white'
                 }`}
             >
-              APPLY FEE
+              APPLY DISCOUNT
             </Text>
           </View>
         </TouchableOpacity>
