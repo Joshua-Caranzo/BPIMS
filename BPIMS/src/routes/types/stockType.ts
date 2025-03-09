@@ -8,6 +8,7 @@ export type BranchStockDto = {
     moq?: number | null;
     imagePath: string | null;
     imageUrl: string | null;
+    whQty: number;
 };
 
 export type StockInputDto = {
@@ -30,7 +31,8 @@ export type StockInputHistoryDto = {
     expectedTotalQty: number;
     deliveredBy: string;
     deliveryDate: Date;
-    branchItemId: number;
+    branchItemId: number | null;
+    whId: number | null;
 } & {
     [key: string]: string | number | Date;
 };

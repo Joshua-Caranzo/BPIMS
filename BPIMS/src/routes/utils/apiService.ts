@@ -33,6 +33,7 @@ baseAxiosInstance.interceptors.request.use(
 baseAxiosInstance.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
+    console.log(error)
     if (!error.response) {
       Alert.alert(
         'Network Error',

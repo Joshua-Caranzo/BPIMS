@@ -56,7 +56,7 @@ const CustomerScreen = React.memo(() => {
 
     const handleViewCustomer = useCallback((id: number | null) => {
         navigation.navigate('CustomerView', { id: id || 0, customers });
-    }, [navigation]);
+    }, [navigation, customers]);
 
     const filteredCustomers = useMemo(() => {
         return customers.filter((customer) =>

@@ -18,9 +18,9 @@ import { ItemStackParamList } from '../../../navigation/navigation';
 type Props = NativeStackScreenProps<ItemStackParamList, 'Transaction'>;
 
 const TransactionScreen = React.memo(({ route }: Props) => {
-    const { user, cart } = route.params;
+    const { user, cart, total } = route.params;
     const [isLoading, setLoading] = useState<boolean>(false);
-    const [payment, setPayment] = useState<string>(cart.subTotal.toString());
+    const [payment, setPayment] = useState<string>(Number(total).toFixed(2).toString());
     const [done, setDone] = useState<boolean>(false);
     const [transaction, setTransaction] = useState<TransactionDto>();
     const [items, setTransactionItems] = useState<TransactionItemsDto[]>([]);
@@ -35,10 +35,6 @@ const TransactionScreen = React.memo(({ route }: Props) => {
 
         return () => backHandler.remove();
     }, []);
-
-    const total = useMemo(() => {
-        return (Number(cart.subTotal) - Number(cart.discount) + Number(cart.deliveryFee));
-    }, [cart]);
 
     const change = useMemo(() => {
         return Number(payment) - total;

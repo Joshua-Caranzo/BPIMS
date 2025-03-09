@@ -172,7 +172,7 @@ const SalesReportScreen = React.memo(() => {
                 <TouchableOpacity className="mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">Sales Report</Text>
+                <Text className="text-black text-lg font-bold">SALES REPORT</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text className="text-white" style={{ fontSize: 12 }}>

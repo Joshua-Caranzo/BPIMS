@@ -307,9 +307,9 @@ const ItemScreen = () => {
                 >
                     <View className='z-[10]'>
                         <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
-                            {item.imagePath && item.imageUrl ? (
+                            {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
                                     className="w-full h-full object-cover"
                                     resizeMode={FastImage.resizeMode.cover}
                                 />
@@ -346,9 +346,9 @@ const ItemScreen = () => {
                         }}
                     >
                         <View className="z-auto bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center">
-                            {item.imagePath && item.imageUrl ? (
+                            {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imageUrl, priority: FastImage.priority.high }}
+                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
                                     className="w-full h-full object-cover"
                                     resizeMode={FastImage.resizeMode.cover}
                                 />

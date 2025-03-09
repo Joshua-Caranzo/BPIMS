@@ -74,29 +74,31 @@ const HomeScreen = React.memo(() => {
     }
 
     setIsLoggingIn(true);
-    const result = await loginUser(username, password);
-    if (result.isSuccess) {
-      await setUserLogIn(result.data);
-      if (result.data.departmentId === 1) {
-        navigation.navigate('SalesStack');
-      }
-      else if (result.data.departmentId === 2) {
-        navigation.navigate('HeadquarterStack')
-      }
-      else if (result.data.departmentId === 3) {
-        navigation.navigate('WarehouseStack')
+
+    try {
+      const result = await loginUser(username, password);
+      if (result.isSuccess) {
+        await setUserLogIn(result.data);
+        if (result.data.departmentId === 1) {
+          navigation.navigate('SalesStack');
+        } else if (result.data.departmentId === 2) {
+          navigation.navigate('HeadquarterStack');
+        } else if (result.data.departmentId === 3) {
+          navigation.navigate('WarehouseStack');
+        } else {
+          navigation.navigate('Home');
+        }
       } else {
-        navigation.navigate('Home');
+        Alert.alert(
+          'Login Failed',
+          result.message,
+          [{ text: 'OK' }],
+          { cancelable: false }
+        );
+        setUsername('');
+        setPassword('');
       }
-    } else {
-      Alert.alert(
-        'Login Failed',
-        result.message,
-        [{ text: 'OK' }],
-        { cancelable: false }
-      );
-      setUsername('');
-      setPassword('');
+    } finally {
       setIsLoggingIn(false);
     }
   }, [username, password, navigation]);

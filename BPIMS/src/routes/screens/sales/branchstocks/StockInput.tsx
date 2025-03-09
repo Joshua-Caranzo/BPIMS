@@ -27,6 +27,8 @@ export default function StockInputScreen({ route }: Props) {
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
     const [isInputMode, setInputMode] = useState(false);
     const [editingField, setEditingField] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
+    const [lastSavedValue, setLastSavedValue] = useState<number | string | Date>(0);
 
     const fieldLabels: { [key: string]: string } = {
         qty: 'Quantity',
@@ -139,18 +141,32 @@ export default function StockInputScreen({ route }: Props) {
             if (item.sellByUnit) {
                 const currentValue = stockInput[editingField]?.toString() || '';
                 const newValue = currentValue + key;
-                handleNumberChange(editingField, newValue);
-            }
-            else {
-                let current = (Number(stockInput?.[editingField] || 0).toFixed(2)).replace('.', '');
+                if (Number(newValue) <= item.whQty) {
+                    handleNumberChange(editingField, newValue);
+                    setMessage(null)
+                }
+                else {
+                    setMessage(`Quantity exceeds available warehouse stock. Available stock: ${Math.round(item.whQty)}`);
+                    return;
+                }
+            } else {
+                let current = (Number(stockInput?.[editingField] || 0).toFixed(2).replace('.', ''));
                 current += key;
                 const formatted = (parseInt(current) / 100).toFixed(2);
-                handleNumberChange(editingField, formatted);
+                if (Number(formatted) <= item.whQty) {
+                    handleNumberChange(editingField, formatted);
+                    setMessage(null)
+                }
+                else {
+                    setMessage(`Quantity exceeds available warehouse stock. Available stock: ${Number(item.whQty).toFixed(2)}`);
+                    return;
+                }
             }
         };
     }
 
     const handleBackspace = () => {
+        setMessage(null)
         if (editingField && stockInput) {
             const currentValue = stockInput[editingField]?.toString() || '';
             const newValue = currentValue.slice(0, -1);
@@ -184,7 +200,7 @@ export default function StockInputScreen({ route }: Props) {
                     deliveryDate: new Date,
                     branchItemId: item.id
                 },
-                [field]: 0,
+                [field]: lastSavedValue,
             }));
         }
         setInputMode(false);
@@ -217,8 +233,10 @@ export default function StockInputScreen({ route }: Props) {
                                         ? String(stockInput?.[editingField] || 0)
                                         : Number(stockInput?.[editingField] || 0).toFixed(2)}
                                 </Text>
-
                             </View>
+                            {message !== null && (
+                                <Text className="text-[10px] font-bold text-red-500">{message}</Text>)
+                            }
                         </View>
                     </View>
                     <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
@@ -261,9 +279,9 @@ export default function StockInputScreen({ route }: Props) {
                         <View className="w-full flex items-center">
                             <Text className="text-black text-sm">{item.name}</Text>
                             <View className="w-full flex items-center mt-2 mb-2">
-                                {item.imagePath && item.imageUrl ? (
+                                {item.imagePath ? (
                                     <FastImage source={{
-                                        uri: item.imageUrl, priority: FastImage.priority.high,
+                                        uri: item.imagePath, priority: FastImage.priority.high,
                                     }} className="w-24 h-24 rounded-lg" />) : (
                                     <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                         <Camera color={"white"} height={32} width={32} />
@@ -283,6 +301,8 @@ export default function StockInputScreen({ route }: Props) {
                                             onPress={() => {
                                                 setEditingField('qty');
                                                 setInputMode(true);
+                                                setMessage(null);
+                                                setLastSavedValue(Number(stockInput.qty));
                                             }}
                                         >
                                             <Text className="text-black">{item.sellByUnit ? stockInput.qty : stockInput.qty.toFixed(2)}</Text>
@@ -354,6 +374,8 @@ export default function StockInputScreen({ route }: Props) {
                                             onPress={() => {
                                                 setEditingField('expectedTotalQty');
                                                 setInputMode(true);
+                                                setMessage(null);
+                                                setLastSavedValue(Number(stockInput.expectedTotalQty));
                                             }}
                                         >
                                             <Text className="text-black">{item.sellByUnit ? stockInput.expectedTotalQty : stockInput.expectedTotalQty.toFixed(2)}</Text>
@@ -366,6 +388,8 @@ export default function StockInputScreen({ route }: Props) {
                                             onPress={() => {
                                                 setEditingField('actualTotalQty');
                                                 setInputMode(true);
+                                                setMessage(null);
+                                                setLastSavedValue(Number(stockInput.actualTotalQty));
                                             }}
                                         >
                                             <Text className="text-black">{item.sellByUnit ? stockInput.actualTotalQty : stockInput.actualTotalQty.toFixed(2)}</Text>

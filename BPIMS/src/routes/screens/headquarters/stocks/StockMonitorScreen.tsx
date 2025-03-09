@@ -114,9 +114,12 @@ const StockMonitorScreen = React.memo(() => {
         inputRef.current?.focus();
     }, []);
 
-    const handleStockInput = useCallback((item: ItemStock, branchId: number) => {
+    const handleStockInput = useCallback((item: ItemStock, id: number, wh: boolean, whQty: number | null) => {
         if (user) {
-            navigation.navigate('StockInput', { item, user, branchId });
+            if (wh)
+                navigation.navigate('StockInput', { item, user, branchId: null, whId: id, whQty });
+            else
+                navigation.navigate('StockInput', { item, user, branchId: id, whId: null, whQty });
         }
     }, [user, navigation]);
 
@@ -145,21 +148,21 @@ const StockMonitorScreen = React.memo(() => {
                 {activeCategory !== 1 ? (
                     <View className={`px-10 ${activeCategory == 2 ? 'w-full' : 'w-[80%]'}`}>
                         {[
-                            { name: item.whName, qty: item.whQty, id: item.whId },
-                            { name: item.ppName, qty: item.ppQty, id: item.ppId },
-                            { name: item.snName, qty: item.snQty, id: item.snId },
-                            { name: item.lName, qty: item.lQty, id: item.lId },
-                        ].map(({ name, qty, id }, index) => (
+                            { name: item.whName, qty: item.whQty, id: item.whId, isWH: true, whQty: null },
+                            { name: item.ppName, qty: item.ppQty, id: item.ppId, isWH: false, whQty: item.whQty },
+                            { name: item.snName, qty: item.snQty, id: item.snId, isWH: false, whQty: item.whQty },
+                            { name: item.lName, qty: item.lQty, id: item.lId, isWH: false, whQty: item.whQty },
+                        ].map(({ name, qty, id, isWH, whQty }, index) => (
                             <View key={`${id}-${index}`} className="flex flex-row items-center justify-between py-1">
                                 <Text className={`flex-1 ${qty >= item.criticalValue ? 'text-gray-500' : 'text-red-500'}`}>
                                     {name}
                                 </Text>
-                                <Text className={`text-right w-[20%] ${qty >= item.criticalValue ? 'text-gray-500' : 'text-red-500'}`}>
+                                <Text className={`text-right ${activeCategory == 2 ? 'w-[20%]' : ''} ${qty >= item.criticalValue ? 'text-gray-500' : 'text-red-500'}`}>
                                     {item.sellByUnit ? Math.round(Number(qty)).toFixed(0) : Number(qty).toFixed(2)}
                                 </Text>
                                 {activeCategory == 2 && (
                                     <TouchableOpacity
-                                        onPress={() => handleStockInput(item, id)}
+                                        onPress={() => handleStockInput(item, id, isWH, whQty)}
                                         className="w-[10%] flex justify-end items-center"
                                     >
                                         <PlusCircle height={15} color="#fe6500" />
@@ -182,7 +185,7 @@ const StockMonitorScreen = React.memo(() => {
                                     : (Number(item.whQty)).toFixed(2)
                             }</Text>
                             <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.whId)}
+                                onPress={() => handleStockInput(item, item.whId, true, null)}
                                 className="flex flex-row justify-center items-center w-[10%] justify-end"
                             >
                                 <PlusCircle height={15} color="#fe6500" />
@@ -200,7 +203,7 @@ const StockMonitorScreen = React.memo(() => {
                                     : (Number(item.ppQty)).toFixed(2)
                             }</Text>
                             <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.ppId)}
+                                onPress={() => handleStockInput(item, item.ppId, false, item.whQty)}
                                 className="flex flex-row justify-center items-center w-[10%] justify-end"
                             >
                                 <PlusCircle height={15} color="#fe6500" />
@@ -217,7 +220,7 @@ const StockMonitorScreen = React.memo(() => {
                                     : (Number(item.snQty)).toFixed(2)
                             }</Text>
                             <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.snId)}
+                                onPress={() => handleStockInput(item, item.snId, false, item.whQty)}
                                 className="flex flex-row justify-center items-center w-[10%] justify-end"
                             >
                                 <PlusCircle height={15} color="#fe6500" />
@@ -234,7 +237,7 @@ const StockMonitorScreen = React.memo(() => {
                                     : (Number(item.lQty)).toFixed(2)
                             }</Text>
                             <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.lId)}
+                                onPress={() => handleStockInput(item, item.lId, false, item.whQty)}
                                 className="flex flex-row justify-center items-center w-[10%] justify-end"
                             >
                                 <PlusCircle height={15} color="#fe6500" />

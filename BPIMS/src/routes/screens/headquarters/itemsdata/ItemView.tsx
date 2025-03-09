@@ -25,12 +25,13 @@ import NumericKeypad from '../../../../components/NumericKeypad';
 import { formatPrice } from '../../../utils/dateFormat';
 import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
 import FastImage from 'react-native-fast-image';
+import RNFS from 'react-native-fs';
 
 type Props = NativeStackScreenProps<ItemsHQParamList, 'ItemView'>;
 
 const ItemViewScreen = ({ route }: Props) => {
     const item: ItemHQDto = route.params.item;
-    const [fileUrl, setFileUrl] = useState<string | null>(item.imageUrl);
+    const [fileUrl, setFileUrl] = useState<string | null>(item.imagePath);
     const navigation = useNavigation<NativeStackNavigationProp<ItemsHQParamList>>();
     const [isValid, setIsValid] = useState<boolean>(false);
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
@@ -40,6 +41,8 @@ const ItemViewScreen = ({ route }: Props) => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
     const [openCategories, setOpenCategories] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
+    const [lastSavedValue, setLastSavedValue] = useState<number | string | Date>(0);
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
     const scrollViewRef = useRef<ScrollView>(null);
 
@@ -51,7 +54,7 @@ const ItemViewScreen = ({ route }: Props) => {
         moq: 'MOQ',
         criticalValue: 'Critical Value',
         unitOfMeasure: 'Unit of Measure',
-        sellbyUnit: 'Sell By Unit'
+        sellByUnit: 'Sell By Unit'
     };
 
     const fetchItem = useCallback(async () => {
@@ -69,11 +72,11 @@ const ItemViewScreen = ({ route }: Props) => {
                 cost: 0.00,
                 isManaged: false,
                 imagePath: null,
-                sellbyUnit: false,
-                moq: 0,
+                sellByUnit: false,
+                moq: 0.00,
                 categoryName: "",
                 unitOfMeasure: "",
-                criticalValue: 0,
+                criticalValue: 0.00,
                 imageUrl: null
             };
             setEditingItem(newItem);
@@ -121,7 +124,8 @@ const ItemViewScreen = ({ route }: Props) => {
             editingItem?.categoryId !== 0 &&
             editingItem?.price !== 0 &&
             editingItem?.cost !== 0 &&
-            editingItem.criticalValue !== null &&
+            editingItem.criticalValue !== 0 &&
+            editingItem.moq !== 0 &&
             editingItem.unitOfMeasure !== null &&
             editingItem.unitOfMeasure !== ""
         );
@@ -131,16 +135,30 @@ const ItemViewScreen = ({ route }: Props) => {
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
             mediaType: 'photo' as MediaType,
-            quality: 1,
+            quality: 0.1,
         };
 
-        const handleResponse = (response: any) => {
+        const handleResponse = async (response: any) => {
             if (response.didCancel) return;
             if (response.errorCode) {
                 console.error('ImagePicker Error:', response.errorMessage);
                 Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
-                setFileUrl(response.assets[0].uri || null);
+                const fileUri = response.assets[0].uri;
+
+                const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
+                const fileSize = fileInfo.size;
+
+                if (fileSize > MAX_FILE_SIZE) {
+                    Alert.alert(
+                        'File Too Large',
+                        `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
+                        [{ text: 'OK' }]
+                    );
+                    setFileUrl(null);
+                } else {
+                    setFileUrl(fileUri);
+                }
             } else {
                 Alert.alert('No image selected');
             }
@@ -164,7 +182,6 @@ const ItemViewScreen = ({ route }: Props) => {
 
         const formData = new FormData();
         Object.entries(editingItem).forEach(([key, value]) => formData.append(key, String(value)));
-
         if (fileUrl) {
             const today = new Date();
             const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
@@ -182,14 +199,28 @@ const ItemViewScreen = ({ route }: Props) => {
         setLoading(false);
     }, [editingItem, fileUrl]);
 
-    const removeItem = useCallback(async (id: number) => {
-        setLoading(true);
-        const response = await deleteItem(id);
-        if (response.isSuccess) {
-            setLoading(false);
-            navigation.navigate('Items');
-        }
-    }, [navigation]);
+    const removeItem = useCallback(
+        async (id: number) => {
+            Alert.alert(
+                'Confirm Deletion',
+                'Are you sure you want to delete this item?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Yes',
+                        onPress: async () => {
+                            setLoading(true);
+                            const response = await deleteItem(id);
+                            if (response.isSuccess) {
+                                navigation.navigate('Items');
+                            }
+                        }
+                    }
+                ]
+            );
+        },
+        [navigation]
+    );
 
     const handleSwitchChange = useCallback((key: keyof ItemHQDto, value: any) => {
         setEditingItem((prevItem) => ({
@@ -201,7 +232,7 @@ const ItemViewScreen = ({ route }: Props) => {
                 cost: 0,
                 isManaged: false,
                 imagePath: null,
-                sellbyUnit: false,
+                sellByUnit: false,
                 moq: 0,
                 categoryName: "",
                 unitOfMeasure: "",
@@ -222,8 +253,8 @@ const ItemViewScreen = ({ route }: Props) => {
                 handleNumberChange(editingField, formatted);
             }
             else {
-                if (editingItem.sellbyUnit) {
-                    const currentValue = editingItem[editingField]?.toString() || '';
+                if (editingItem.sellByUnit) {
+                    const currentValue = (Number(editingItem?.[editingField] || 0).toFixed(0)).toString() || '';
                     const newValue = currentValue + key;
                     handleNumberChange(editingField, newValue);
                 }
@@ -246,7 +277,7 @@ const ItemViewScreen = ({ route }: Props) => {
                 handleNumberChange(editingField, formatted);
             }
             else {
-                if (editingItem.sellbyUnit) {
+                if (editingItem.sellByUnit) {
                     const currentValue = editingItem[editingField]?.toString() || '';
                     const newValue = currentValue.slice(0, -1);
                     handleNumberChange(editingField, newValue);
@@ -260,6 +291,31 @@ const ItemViewScreen = ({ route }: Props) => {
             }
         };
     }, [editingField, editingItem, handleNumberChange]);
+
+    const handleBackKeypad = (field: string | null) => {
+        if (editingField && editingItem && field) {
+            setEditingItem((item) => ({
+                ...item ?? {
+                    id: 0,
+                    name: "",
+                    categoryId: 0,
+                    categoryName: "",
+                    price: 0,
+                    cost: 0,
+                    isManaged: false,
+                    imagePath: null,
+                    imageUrl: null,
+                    sellByUnit: false,
+                    moq: 0,
+                    criticalValue: 0,
+                    unitOfMeasure: "",
+                },
+                [field]: lastSavedValue,
+            }));
+        }
+        setInputMode(false);
+        setEditingField(null);
+    };
 
     const closeModal = useCallback(() => setOpenCategories(false), []);
 
@@ -313,7 +369,7 @@ const ItemViewScreen = ({ route }: Props) => {
                             <View className='top-3 flex flex-row px-2'>
                                 <TouchableOpacity
                                     className="bg-gray px-1 pb-2 ml-2"
-                                    onPress={() => setInputMode(false)}
+                                    onPress={() => handleBackKeypad(editingField)}
                                 >
                                     <ChevronLeft height={28} width={28} color={"#fe6500"} />
                                 </TouchableOpacity>
@@ -331,8 +387,8 @@ const ItemViewScreen = ({ route }: Props) => {
                                                 ?
                                                 `₱ ${Number(editingItem?.[editingField] || 0).toFixed(2)}`
                                                 :
-                                                (editingItem.sellbyUnit)
-                                                    ? String(editingItem?.[editingField] || 0)
+                                                (editingItem.sellByUnit)
+                                                    ? `${Number(editingItem?.[editingField] || 0).toFixed(0)}`
                                                     : `${Number(editingItem?.[editingField] || 0).toFixed(2)}`}
                                         </Text>
                                     </View>
@@ -375,7 +431,7 @@ const ItemViewScreen = ({ route }: Props) => {
 
                             <View className="px-4 w-full mt-6">
                                 <View className="w-full flex items-center">
-                                    <Text className="text-black text-sm">{editingItem.name}</Text>
+                                    <Text className="text-black text-sm">{editingItem.name.toUpperCase()}</Text>
                                     <TouchableOpacity className='w-full mt-2 items-center' onPress={handleImageSelect}>
 
                                         {fileUrl ? (
@@ -417,6 +473,7 @@ const ItemViewScreen = ({ route }: Props) => {
                                                     onPress={() => {
                                                         setEditingField('price');
                                                         setInputMode(true);
+                                                        setLastSavedValue(Number(editingItem.price));
                                                     }}
                                                 >
                                                     <Text className="text-black">₱ {formatPrice(editingItem.price || 0)}</Text>
@@ -430,6 +487,7 @@ const ItemViewScreen = ({ route }: Props) => {
                                                     onPress={() => {
                                                         setEditingField('cost');
                                                         setInputMode(true);
+                                                        setLastSavedValue(Number(editingItem.cost));
                                                     }}
                                                 >
                                                     <Text className="text-black">₱ {formatPrice(editingItem.cost || 0)}</Text>
@@ -455,9 +513,9 @@ const ItemViewScreen = ({ route }: Props) => {
                                             <View className="flex flex-row items-center">
                                                 <Text className="text-gray-600 mr-2">Sell By Unit</Text>
                                                 <Switch
-                                                    value={editingItem?.sellbyUnit || false}
-                                                    onValueChange={(value) => handleSwitchChange('sellbyUnit', value)}
-                                                    thumbColor={editingItem?.sellbyUnit ? "#fe6500" : "#fe6500"}
+                                                    value={editingItem?.sellByUnit || false}
+                                                    onValueChange={(value) => handleSwitchChange('sellByUnit', value)}
+                                                    thumbColor={editingItem?.sellByUnit ? "#fe6500" : "#fe6500"}
                                                     trackColor={{ false: "#ccc", true: "#FF9E66" }}
                                                 />
                                             </View>
@@ -470,9 +528,10 @@ const ItemViewScreen = ({ route }: Props) => {
                                                     onPress={() => {
                                                         setEditingField('moq');
                                                         setInputMode(true);
+                                                        setLastSavedValue(Number(editingItem.moq));
                                                     }}
                                                 >
-                                                    <Text className="text-black">{editingItem.sellbyUnit ? Math.round(editingItem.moq) || 0 : formatPrice(editingItem.moq || 0)}</Text>
+                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.moq) || 0 : formatPrice(editingItem.moq || 0)}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             <View className='w-1/2'>
@@ -482,9 +541,10 @@ const ItemViewScreen = ({ route }: Props) => {
                                                     onPress={() => {
                                                         setEditingField('criticalValue');
                                                         setInputMode(true);
+                                                        setLastSavedValue(Number(editingItem.criticalValue));
                                                     }}
                                                 >
-                                                    <Text className="text-black">{editingItem.sellbyUnit ? Math.round(editingItem.criticalValue) || 0 : formatPrice(editingItem.criticalValue || 0)}</Text>
+                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.criticalValue) || 0 : formatPrice(editingItem.criticalValue || 0)}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
