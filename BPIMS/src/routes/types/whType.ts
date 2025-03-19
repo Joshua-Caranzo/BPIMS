@@ -10,15 +10,17 @@ export type WHStockDto = {
     moq: number | null;
 };
 
-
 export type WHStockInputHistoryDto = {
     id: number;
     qty: number;
     moq: number;
     actualTotalQty: number;
     expectedTotalQty: number;
-    deliveredBy: string;
+    deliveredBy: number;
+    deliveredByName: string
     deliveryDate: Date;
+    name: string;
+    sellByUnit: boolean
 } & {
     [key: string]: string | number | Date;
 };
@@ -28,8 +30,17 @@ export type WHStockInputDto = {
     qty: number;
     actualTotalQty: number;
     expectedTotalQty: number;
-    deliveredBy: string;
+    deliveredBy: number | null;
+    deliveredByName: string | null;
     deliveryDate: Date;
 } & {
     [key: string]: string | number | Date;
+};
+
+export type SupplierDto = {
+    id: number;
+    name: string;
+    contactNumber1: string;
+    contactNumber2: string | null;
+    address: string;
 };

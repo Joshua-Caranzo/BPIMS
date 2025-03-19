@@ -22,10 +22,14 @@ const DeliveryFeeScreen = React.memo(({ route }: Props) => {
   const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
 
   const applyFee = useCallback(async () => {
-    setLoading(true);
-    await updateDeliveryFee(Number(fee));
-    setLoading(false);
-    navigation.navigate('Cart', { user });
+    try {
+      setLoading(true);
+      await updateDeliveryFee(Number(fee));
+      navigation.navigate('Cart', { user });
+    }
+    finally {
+      setLoading(false);
+    }
   }, [fee, navigation]);
 
   const handleKeyPress = useCallback((key: string) => {

@@ -11,12 +11,13 @@ import { Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getUserDetails } from '../../../utils/auth';
-import { UserDetails } from '../../../types/userType';
+import { ObjectDto, UserDetails } from '../../../types/userType';
 import { ItemStock } from '../../../types/stockType';
 import { getStocksMonitor } from '../../../services/stockRepo';
 import { getSocketData } from '../../../utils/apiService';
 import { StockMonitorParamList } from '../../../navigation/navigation';
 import HQSidebar from '../../../../components/HQSidebar';
+import { getSupplierList } from '../../../services/whRepo';
 
 const StockMonitorScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -30,6 +31,7 @@ const StockMonitorScreen = React.memo(() => {
     const [loadMore, setLoadMore] = useState(false);
     const [hasMoreData, setHasMoreData] = useState(true);
     const [criticalCount, setCriticalCount] = useState(0);
+    const [suppliers, setSuppliers] = useState<ObjectDto[]>([]);
 
     const inputRef = useRef<TextInput>(null);
     const navigation = useNavigation<NativeStackNavigationProp<StockMonitorParamList>>();
@@ -63,32 +65,40 @@ const StockMonitorScreen = React.memo(() => {
 
     const getItems = useCallback(
         async (categoryId: number, page: number, search: string) => {
-            if (activeCategory !== lastCategory) {
-                setStocks([]);
-            }
-            if (!loadMore) setLoading(true);
+            try {
+                if (activeCategory !== lastCategory) {
+                    setStocks([]);
+                }
+                if (!loadMore) setLoading(true);
 
-            const userResponse = await getUserDetails();
-            setUser(userResponse);
+                const userResponse = await getUserDetails();
+                setUser(userResponse);
 
-            const response = await getStocksMonitor(
-                categoryId,
-                page,
-                search.trim()
-            );
-
-            if (response.isSuccess) {
-                const newProducts = response.data;
-                setStocks((prevProducts) =>
-                    page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                const objectResponse = await getSupplierList("");
+                setSuppliers(objectResponse.data);
+                const response = await getStocksMonitor(
+                    categoryId,
+                    page,
+                    search.trim()
                 );
-                setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
-            } else {
-                setStocks([]);
-            }
 
-            setLoading(false);
-            setLoadMore(false);
+                if (response.isSuccess) {
+                    const newProducts = response.data;
+                    setStocks((prevProducts) =>
+                        page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                    );
+                    setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
+                } else {
+                    setStocks([]);
+                }
+
+                setLoading(false);
+                setLoadMore(false);
+            }
+            finally {
+                setLoading(false);
+                setLoadMore(false);
+            }
         },
         [activeCategory, lastCategory, loadMore, stocks.length]
     );
@@ -117,9 +127,9 @@ const StockMonitorScreen = React.memo(() => {
     const handleStockInput = useCallback((item: ItemStock, id: number, wh: boolean, whQty: number | null) => {
         if (user) {
             if (wh)
-                navigation.navigate('StockInput', { item, user, branchId: null, whId: id, whQty });
+                navigation.navigate('StockInput', { item, user, branchId: null, whId: id, whQty, suppliers });
             else
-                navigation.navigate('StockInput', { item, user, branchId: id, whId: null, whQty });
+                navigation.navigate('StockInput', { item, user, branchId: id, whId: null, whQty, suppliers });
         }
     }, [user, navigation]);
 
@@ -154,10 +164,10 @@ const StockMonitorScreen = React.memo(() => {
                             { name: item.lName, qty: item.lQty, id: item.lId, isWH: false, whQty: item.whQty },
                         ].map(({ name, qty, id, isWH, whQty }, index) => (
                             <View key={`${id}-${index}`} className="flex flex-row items-center justify-between py-1">
-                                <Text className={`flex-1 ${qty >= item.criticalValue ? 'text-gray-500' : 'text-red-500'}`}>
+                                <Text className={`flex-1 ${Number(qty) >= Number(item.criticalValue) ? 'text-gray-500' : 'text-red-500'}`}>
                                     {name}
                                 </Text>
-                                <Text className={`text-right ${activeCategory == 2 ? 'w-[20%]' : ''} ${qty >= item.criticalValue ? 'text-gray-500' : 'text-red-500'}`}>
+                                <Text className={`text-right ${activeCategory == 2 ? 'w-[20%]' : ''} ${Number(qty) >= Number(item.criticalValue) ? 'text-gray-500' : 'text-red-500'}`}>
                                     {item.sellByUnit ? Math.round(Number(qty)).toFixed(0) : Number(qty).toFixed(2)}
                                 </Text>
                                 {activeCategory == 2 && (
@@ -176,8 +186,8 @@ const StockMonitorScreen = React.memo(() => {
                     <View className="px-10 w-full">
 
                         <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${item.whQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{item.whName}</Text>
-                            <Text className={`${item.whQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{
+                            <Text className={`flex-1 ${Number(item.whQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.whName}</Text>
+                            <Text className={`${Number(item.whQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
                                 item.sellByUnit
                                     ? Math.round(
                                         Number(item.whQty)
@@ -194,8 +204,8 @@ const StockMonitorScreen = React.memo(() => {
 
 
                         <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${item.ppQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{item.ppName}</Text>
-                            <Text className={`${item.ppQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{
+                            <Text className={`flex-1 ${Number(item.ppQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.ppName}</Text>
+                            <Text className={`${Number(item.ppQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
                                 item.sellByUnit
                                     ? Math.round(
                                         Number(item.ppQty)
@@ -211,8 +221,8 @@ const StockMonitorScreen = React.memo(() => {
                         </View>
 
                         <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${item.snQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{item.snName}</Text>
-                            <Text className={`${item.snQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{
+                            <Text className={`flex-1 ${Number(item.snQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.snName}</Text>
+                            <Text className={`${Number(item.snQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
                                 item.sellByUnit
                                     ? Math.round(
                                         Number(item.snQty)
@@ -228,8 +238,8 @@ const StockMonitorScreen = React.memo(() => {
                         </View>
 
                         <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${item.lQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{item.lName}</Text>
-                            <Text className={`${item.lQty < item.criticalValue ? 'text-red-500' : 'text-gray-500'}`}>{
+                            <Text className={`flex-1 ${Number(item.lQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.lName}</Text>
+                            <Text className={`${Number(item.lQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
                                 item.sellByUnit
                                     ? Math.round(
                                         Number(item.lQty)

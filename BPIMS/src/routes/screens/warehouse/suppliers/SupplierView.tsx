@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,29 +9,29 @@ import {
     ScrollView,
     ActivityIndicator,
 } from 'react-native';
-import { CustomerDto, OrderHistory } from '../../../types/customerType';
-import { deleteCustomer, getCustomer, saveCustomer } from '../../../services/customerRepo';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CustomerHQStackParamList } from '../../../navigation/navigation';
+import { SupplierParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera, CameraOptions, ImageLibraryOptions, MediaType } from 'react-native-image-picker';
-import { Camera, ChevronLeft, Trash2 } from 'react-native-feather';
-import { formatTransactionDate } from '../../../utils/dateFormat';
+import { ChevronLeft, Trash2 } from 'react-native-feather';
+import { formatTransactionDateOnly } from '../../../utils/dateFormat';
 import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
+import { SupplierDto, WHStockInputHistoryDto } from '../../../types/whType';
+import { getSupplier, getSupplierStockHistory, removeSupplier, saveSupplier } from '../../../services/whRepo';
 
-type Props = NativeStackScreenProps<CustomerHQStackParamList, 'CustomerView'>;
+type Props = NativeStackScreenProps<SupplierParamList, 'SupplierView'>;
 
-const CustomerViewScreen = React.memo(({ route }: Props) => {
+const SupplierViewScreen = React.memo(({ route }: Props) => {
     const { id } = route.params;
-    const customers = route.params.customers
-    const [customerId, setCustomerId] = useState<number>(Number(id));
-    const [customer, setCustomer] = useState<CustomerDto | null>(null);
+    const suppliers = route.params.suppliers
+    const [supplierId, setSupplierId] = useState<number>(Number(id));
+    const [supplier, setSupplier] = useState<SupplierDto | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
-    const [loaderMessage, setLoaderMessage] = useState<string>('Loading Customer Data...');
-    const navigation = useNavigation<NativeStackNavigationProp<CustomerHQStackParamList>>();
+    const [stockHistory, setStockHistory] = useState<WHStockInputHistoryDto[]>([]);
+    const [loaderMessage, setLoaderMessage] = useState<string>('Loading Supplier Data...');
+    const navigation = useNavigation<NativeStackNavigationProp<SupplierParamList>>();
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
     const [nameExists, setNameExists] = useState<boolean>(false);
     const [isValid, setIsValid] = useState<boolean>(false);
@@ -53,52 +53,48 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
 
     useEffect(() => {
         validateForm();
-    }, [customer, nameExists]);
+    }, [supplier, nameExists]);
 
     function validateForm() {
         const isFormValid = (
-            customer?.name !== "" &&
+            supplier?.name !== "" &&
             !nameExists
         );
         setIsValid(isFormValid);
     }
 
-    const fetchCustomer = useCallback(async () => {
+    const fetchsupplier = useCallback(async () => {
         try {
             setLoading(true);
             FastImage.clearMemoryCache();
             FastImage.clearDiskCache();
-            if (customerId != 0 && customerId != null) {
-                const response = await getCustomer(customerId);
+            if (supplierId != 0 && supplierId != null) {
+                const response = await getSupplier(supplierId);
+                const historyResponse = await getSupplierStockHistory(supplierId)
                 if (response) {
-                    setCustomer(response.data.customer);
-                    setOrderHistory(response.data.orderHistory ?? []);
-                    setFileUrl(response.data.customer.fileName)
+                    setSupplier(response.data);
+                    setStockHistory(historyResponse.data ?? []);
                 }
-            } else if (customerId == 0) {
-                const newCustomer: CustomerDto = {
+            } else if (supplierId == 0) {
+                const newsupplier: SupplierDto = {
                     id: 0,
                     name: '',
-                    contactNumber1: null,
+                    contactNumber1: "",
                     contactNumber2: null,
-                    totalOrderAmount: 0,
-                    branchId: null,
-                    branch: null,
-                    fileUrl: null,
-                    fileName: null,
+                    address: ""
                 };
-                setCustomer(newCustomer);
+                setSupplier(newsupplier);
             }
             setLoading(false);
         }
         finally {
             setLoading(false);
         }
-    }, [customerId]);
+    }, [supplierId]);
 
     useEffect(() => {
-        fetchCustomer();
-    }, [fetchCustomer]);
+        fetchsupplier();
+    }, [fetchsupplier]);
 
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
@@ -145,59 +141,60 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     }, []);
 
     const handleNameChange = useCallback((text: string) => {
-        setCustomer((prevCustomer) => ({
-            ...(prevCustomer ?? {
+        setSupplier((prevsupplier) => ({
+            ...(prevsupplier ?? {
                 id: 0,
                 name: '',
-                contactNumber1: '',
-                contactNumber2: '',
-                totalOrderAmount: 0,
-                branchId: null,
-                branch: '',
-                fileUrl: null,
-                fileName: null,
+                contactNumber1: "",
+                contactNumber2: null,
+                address: ""
             }),
             name: text,
         }));
-        if (customer) {
-            const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase() && c.id !== customer.id);
+        if (supplier) {
+            const exists = suppliers.some(c => c.name.toLowerCase() === text.toLowerCase() && c.id !== supplier.id);
             setNameExists(exists);
         }
-        else if (!customer) {
-            const exists = customers.some(c => c.name.toLowerCase() === text.toLowerCase());
+        else if (!supplier) {
+            const exists = suppliers.some(c => c.name.toLowerCase() === text.toLowerCase());
             setNameExists(exists);
         }
-    }, [customer]);
+    }, [supplier]);
 
-    const handleContactNumber1Change = useCallback((text: string) => {
-        setCustomer((prevCustomer) => ({
-            ...(prevCustomer ?? {
+    const handleAddressChange = useCallback((text: string) => {
+        setSupplier((prevsupplier) => ({
+            ...(prevsupplier ?? {
                 id: 0,
                 name: '',
-                contactNumber1: '',
-                contactNumber2: '',
-                totalOrderAmount: 0,
-                branchId: null,
-                branch: '',
-                fileUrl: null,
-                fileName: null,
+                contactNumber1: "",
+                contactNumber2: null,
+                address: ""
+            }),
+            address: text,
+        }));
+    }, [supplier]);
+
+    const handleContactNumber1Change = useCallback((text: string) => {
+        setSupplier((prevsupplier) => ({
+            ...(prevsupplier ?? {
+                id: 0,
+                name: '',
+                contactNumber1: "",
+                contactNumber2: null,
+                address: ""
             }),
             contactNumber1: text,
         }));
     }, []);
 
     const handleContactNumber2Change = useCallback((text: string) => {
-        setCustomer((prevCustomer) => ({
-            ...(prevCustomer ?? {
+        setSupplier((prevsupplier) => ({
+            ...(prevsupplier ?? {
                 id: 0,
                 name: '',
-                contactNumber1: '',
-                contactNumber2: '',
-                totalOrderAmount: 0,
-                branchId: null,
-                branch: '',
-                fileUrl: null,
-                fileName: null,
+                contactNumber1: "",
+                contactNumber2: null,
+                address: ""
             }),
             contactNumber2: text,
         }));
@@ -206,53 +203,33 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     const handleSave = useCallback(async () => {
         try {
             Keyboard.dismiss();
-            setLoaderMessage('Saving Customer...');
-            if (customer) {
-                setLoading(true);
-                customer.branchId = null;
-                const formData = new FormData();
-                formData.append('id', String(customer.id));
-                formData.append('name', customer.name);
-                if (customer.contactNumber1 != null) formData.append('contactNumber1', customer.contactNumber1);
-                if (customer.contactNumber2 != null) formData.append('contactNumber2', customer.contactNumber2);
-                if (customer.branchId != null) formData.append('branchId', customer.branchId);
-                if (fileUrl) {
-                    const today = new Date();
-                    const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
-                        .toString()
-                        .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
-                    const firstName = customer.name?.split(' ')[0] || 'Unknown';
-                    formData.append('file', {
-                        uri: fileUrl,
-                        name: `${firstName}${formattedDate}.jpg`,
-                        type: 'image/jpeg',
-                    } as any);
-                }
-                await saveCustomer(formData);
-                navigation.navigate('Customer')
+            setLoaderMessage('Saving supplier...');
+            if (supplier) {
+                await saveSupplier(supplier);
+                navigation.push('SupplierList')
             }
         }
         finally {
             setLoading(false);
         }
-    }, [customer, fileUrl, fetchCustomer]);
+    }, [supplier, fileUrl, fetchsupplier]);
 
-    const removeCustomer = useCallback(
+    const removesupplier = useCallback(
         async (id: number) => {
             Alert.alert(
                 'Confirm Deletion',
-                'Are you sure you want to delete this customer?',
+                'Are you sure you want to delete this supplier?',
                 [
                     { text: 'Cancel', style: 'cancel' },
                     {
                         text: 'Yes',
                         onPress: async () => {
-                            setLoaderMessage('Deleting Customer...');
+                            setLoaderMessage('Deleting supplier...');
                             try {
                                 setLoading(true);
-                                const response = await deleteCustomer(id);
+                                const response = await removeSupplier(id);
                                 if (response.isSuccess) {
-                                    navigation.push('Customer');
+                                    navigation.push('SupplierList');
                                 }
                             }
                             finally {
@@ -265,13 +242,6 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
         },
         [navigation]
     );
-
-    const formattedOrderHistory = useMemo(() => {
-        return orderHistory.map((order) => ({
-            ...order,
-            formattedDate: formatTransactionDate(order.transactionDate.toString()),
-        }));
-    }, [orderHistory]);
 
     if (loading) {
         return (
@@ -286,19 +256,19 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
         <View className="flex flex-1">
             <View className="top-3 flex flex-row justify-between px-2">
                 <View className="flex flex-row">
-                    <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.navigate("Customer")}>
+                    <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.navigate("SupplierList")}>
                         <ChevronLeft height={28} width={28} color="#fe6500" />
                     </TouchableOpacity>
-                    {customer && customer.id != 0 ? (
-                        <Text className="font-bold text-base text-gray-700 ml-3">{customer.name}</Text>
+                    {supplier && supplier.id != 0 ? (
+                        <Text className="font-bold text-base text-gray-700 ml-3">{supplier.name}</Text>
                     ) : (
-                        <Text className="font-bold text-base text-gray-700 ml-3">New Customer</Text>
+                        <Text className="font-bold text-base text-gray-700 ml-3">New supplier</Text>
                     )}
                 </View>
-                {customer && customer.id != 0 && (
+                {supplier && supplier.id != 0 && (
                     <View>
                         <TouchableOpacity
-                            onPress={() => removeCustomer(customer.id)}
+                            onPress={() => removesupplier(supplier.id)}
                             className="rounded-full w-6 h-6 flex items-center justify-center mr-2"
                         >
                             <Trash2 height={20} width={20} />
@@ -309,37 +279,15 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
             <View className="w-full h-[2px] bg-gray-500 mt-2 mb-2"></View>
 
             <View className="px-4 w-full">
-                {customer && (
+                {supplier && (
                     <>
-                        <View className="w-full flex-row justify-between">
-                            <View className="flex-1">
-                                <Text className="text-gray-700 text-sm">Branch</Text>
-                                <TextInput
-                                    value={customer.branch?.toUpperCase() || 'No Branch'}
-                                    editable={false}
-                                    className="pb-2 mb-2 text-[#fe6500]"
-                                    placeholder="Branch Name"
-                                />
-                            </View>
-                            <TouchableOpacity onPress={handleImageSelect}>
-                                {fileUrl ? (
-                                    <FastImage source={{ uri: fileUrl }} className="w-24 h-24 rounded-lg" />
-                                ) : (
-                                    <View className="w-24 h-24 bg-gray-500 rounded-lg justify-center items-center">
-                                        <Camera color="white" height={32} width={32} />
-                                        <Text className="text-white text-xs mt-1">Add Photo</Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-
                         <View className='w-full mb-2'>
                             <Text className="text-gray-700 text-sm font-bold">Name</Text>
                             <TextInput
-                                value={customer.name || ''}
+                                value={supplier.name || ''}
                                 editable={true}
                                 className="border-b border-gray-400 py-2 text-black"
-                                placeholder="Customer Name"
+                                placeholder="Supplier Name"
                                 onChangeText={handleNameChange}
                                 placeholderTextColor="#8a8a8a"
                                 selectionColor="#fe6500"
@@ -354,7 +302,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         <View className='w-full'>
                             <Text className="text-gray-700 text-sm font-bold">Contact Number 1</Text>
                             <TextInput
-                                value={customer.contactNumber1 || ''}
+                                value={supplier.contactNumber1 || ''}
                                 editable={true}
                                 className="border-b border-gray-400 py-2 mb-2 text-black"
                                 placeholder="Contact Number 1"
@@ -367,7 +315,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         <View className='w-full'>
                             <Text className="text-gray-700 text-sm font-bold">Contact Number 2</Text>
                             <TextInput
-                                value={customer.contactNumber2 || ''}
+                                value={supplier.contactNumber2 || ''}
                                 editable={true}
                                 className="border-b border-gray-400 py-2 mb-2 text-black"
                                 placeholder="Contact Number 2"
@@ -377,37 +325,42 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                                 keyboardType='numeric'
                             />
                         </View>
-                        {customer.id !== 0 && (
-                            <View className='w-full'>
-                                <Text className="text-gray-700 text-sm font-bold">Total Order Amount</Text>
-                                <TextInput
-                                    value={customer.totalOrderAmount ? `₱ ${customer.totalOrderAmount}` : ''}
-                                    editable={false}
-                                    className="border-b border-gray-400 py-2 mb-2"
-                                    placeholder="Total Order Amount"
-                                />
-                            </View>
-                        )}
+                        <View className='w-full mb-2'>
+                            <Text className="text-gray-700 text-sm font-bold">Address</Text>
+                            <TextInput
+                                value={supplier.address || ''}
+                                editable={true}
+                                className="border-b border-gray-400 py-2 text-black"
+                                placeholder="Address"
+                                onChangeText={handleAddressChange}
+                                placeholderTextColor="#8a8a8a"
+                                selectionColor="#fe6500"
+                            />
+
+                        </View>
+
+
                         {loading && (
                             <ActivityIndicator className='mt-6' size={'small'} color={'#fe6500'}></ActivityIndicator>
                         )}
-                        {orderHistory.length > 0 && (
-                            <View className="flex flex-column mt-2 h-[35vh] md:h-[50vh] lg:h-[60vh] pb-2">
-                                <Text className="text-gray-700 text-sm font-bold">Order History</Text>
+                        {stockHistory.length > 0 && (
+                            <View className="flex flex-column mt-4 h-[35vh] md:h-[50vh] lg:h-[60vh] pb-2">
+                                <Text className="text-gray-700 text-sm font-bold">Supply History</Text>
                                 <ScrollView className="w-full mb-8 mt-1">
                                     <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
-                                        <Text className="text-black text-xs font-semibold flex-1 text-left">Slip No</Text>
-                                        <Text className="text-black text-xs font-semibold flex-1 text-center">Amount</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-left">Item</Text>
+                                        <Text className="text-black text-xs font-semibold flex-1 text-center">Quantity</Text>
                                         <Text className="text-black text-xs font-semibold flex-1 text-right">Date</Text>
                                     </View>
 
-                                    {formattedOrderHistory.map((order) => (
-                                        <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory', { transactionId: order.id })} key={order.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
-                                            <Text className="text-black text-xs flex-1 text-left">{order.slipNo}</Text>
-                                            <Text className="text-black text-xs flex-1 text-right mr-8">₱ {order.totalAmount}</Text>
-                                            <Text className="text-black text-xs flex-1 text-right">{order.formattedDate}</Text>
-                                        </TouchableOpacity>
+                                    {stockHistory.map((order) => (
+                                        <View key={order.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
+                                            <Text className="text-black text-xs flex-1 text-left">{order.name}</Text>
+                                            <Text className="text-black text-xs flex-1 text-center">{order.sellByUnit ? Math.round(order.qty) : Number(order.qty).toFixed(2)}</Text>
+                                            <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(order.deliveryDate.toString())}</Text>
+                                        </View>
                                     ))}
+
                                 </ScrollView>
                             </View>
                         )
@@ -436,4 +389,4 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     );
 });
 
-export default CustomerViewScreen;
+export default SupplierViewScreen;

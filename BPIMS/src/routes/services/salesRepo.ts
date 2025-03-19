@@ -5,7 +5,8 @@ import FileViewer from 'react-native-file-viewer';
 import { getFromBaseApi, postToBaseApi, putToBaseApi } from '../utils/apiService';
 import { CallResultDto } from '../types/CallResultDto';
 import { CartDto, CategoryDto, ItemDto, TransactionDto, TransactionItemsDto, TransactionRequestDto } from '../types/salesType';
-import { Alert } from 'react-native';
+import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { DailyTransactionDto } from '../types/reportType';
 
 export async function getCategories() {
     return await getFromBaseApi<CallResultDto<CategoryDto[]>>('getCategories');
@@ -52,31 +53,45 @@ export async function updateCustomer(id: number | null) {
 }
 
 export async function generateReceipt(transactionId: number, transaction: TransactionDto) {
-
-    const config = {
-        responseType: 'blob' as ResponseType,
-    };
-
-    const blob = await postToBaseApi<Blob>('generateReceipt', { transactionId }, config);
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-        const base64Data = reader.result?.toString().split(',')[1];
-
-        if (base64Data) {
-            const filePath = `${RNFS.DocumentDirectoryPath}/${transaction.slipNo}_receipt.pdf`;
-
-            await RNFS.writeFile(filePath, base64Data, 'base64');
-
-            await RNFS.scanFile(filePath);
-
-            try {
-                await FileViewer.open(filePath, { showOpenWithDialog: true });
-            } catch (error) {
-                console.error("Error opening file:", error);
-                Alert.alert("Failed to open the receipt. Please ensure you have a PDF viewer installed.");
-            }
+    try {
+        if (Platform.OS === 'android') {
+            const granted = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+            );
         }
-    };
 
+        const config = { responseType: 'blob' as ResponseType };
+        const blob = await postToBaseApi<Blob>('generateReceipt', { transactionId }, config);
+
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+            const base64Data = reader.result?.toString().split(',')[1];
+
+            if (base64Data) {
+                const filePath = `${RNFS.DownloadDirectoryPath}/${transaction.slipNo}_receipt.pdf`;
+
+                await RNFS.writeFile(filePath, base64Data, 'base64');
+                await RNFS.scanFile(filePath);
+
+                try {
+                    await FileViewer.open(filePath, { showOpenWithDialog: true });
+                } catch (error) {
+                    console.error("Error opening file:", error);
+                    Alert.alert("Failed to open the receipt. Please ensure you have a PDF viewer installed.");
+                }
+            }
+        };
+    } catch (error) {
+        console.error("Error generating receipt:", error);
+        Alert.alert("Error", "Failed to generate the receipt.");
+    }
+}
+
+export async function getAllTransactionHistory(branchId: number, page: number, search: string) {
+    return await getFromBaseApi<CallResultDto<DailyTransactionDto[]>>('getAllTransactions', { branchId, page, search });
+}
+
+export async function getAllTransactionHistoryHQ(branchId: number | null, page: number, search: string) {
+    return await getFromBaseApi<CallResultDto<DailyTransactionDto[]>>('getAllTransactionsHQ', { branchId, page, search });
 }

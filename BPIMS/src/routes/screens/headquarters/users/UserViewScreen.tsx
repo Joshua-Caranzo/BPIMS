@@ -8,13 +8,14 @@ import {
     FlatList,
     Switch,
     ActivityIndicator,
-    Keyboard
+    Keyboard,
+    Alert
 } from 'react-native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { UsersHQParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Eye, EyeOff, XCircle } from 'react-native-feather';
-import { addUser, editUser, getBranches, getDepartments, getUser } from '../../../services/userRepo';
+import { ChevronLeft, Eye, EyeOff, Trash2, XCircle } from 'react-native-feather';
+import { addUser, editUser, getBranches, getDepartments, getUser, setUserInactive } from '../../../services/userRepo';
 import { ObjectDto, UserListDto } from '../../../types/userType';
 
 type Props = NativeStackScreenProps<UsersHQParamList, 'UserView'>;
@@ -26,6 +27,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     const [branches, setBranches] = useState<ObjectDto[]>([]);
     const [departments, setDepartments] = useState<ObjectDto[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [buttonLoading, setButtonLoading] = useState<boolean>(false);
     const [modalType, setModalType] = useState<'branch' | 'department' | null>(null);
     const [isValid, setIsValid] = useState<boolean>(false);
     const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -39,29 +41,34 @@ const UserViewScreen = React.memo(({ route }: Props) => {
 
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
+            try {
+                setLoading(true);
 
-            const branchResponse = await getBranches();
-            const departmentResponse = await getDepartments();
-            setBranches(branchResponse);
-            setDepartments(departmentResponse);
-            if (id !== 0) {
-                const response = await getUser(id);
-                setUser(response?.data || null);
-            } else {
-                setUser({
-                    id: 0,
-                    name: '',
-                    email: '',
-                    branchId: null,
-                    branchName: null,
-                    departmentId: 0,
-                    deptName: '',
-                    hasHeadAccess: false,
-                    password: '',
-                });
+                const branchResponse = await getBranches();
+                const departmentResponse = await getDepartments();
+                setBranches(branchResponse);
+                setDepartments(departmentResponse);
+                if (id !== 0) {
+                    const response = await getUser(id);
+                    setUser(response?.data || null);
+                } else {
+                    setUser({
+                        id: 0,
+                        name: '',
+                        email: '',
+                        branchId: null,
+                        branchName: null,
+                        departmentId: 0,
+                        deptName: '',
+                        hasHeadAccess: false,
+                        password: '',
+                    });
+                }
+                setLoading(false);
             }
-            setLoading(false);
+            finally {
+                setLoading(false);
+            }
         };
         fetchData();
     }, [id]);
@@ -131,20 +138,58 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     }, [user, confirmPassword]);
 
     const handleSave = async () => {
-        if (user) {
-            setLoading(true);
+        try {
+            if (user) {
+                setButtonLoading(true);
 
-            if (user.id === 0) {
-                const response = await addUser(user);
-                navigation.replace('UserView', { id: response.data, name });
-            } else {
-                const response = await editUser(user);
-                navigation.replace('UserView', { id: response.data, name: user.name });
+                if (user.id === 0) {
+                    await addUser(user);
+                    navigation.push('Users')
+                } else {
+                    await editUser(user);
+                    navigation.push('Users')
+                }
+                setButtonLoading(false);
             }
-            setLoading(false);
+        }
+        finally {
+            setButtonLoading(false);
         }
     };
 
+    const userInactive = async () => {
+        try {
+            if (user) {
+                setButtonLoading(true);
+
+                if (user.id === 0) {
+                    return;
+                }
+
+                Alert.alert(
+                    "Confirm Deactivation",
+                    "Are you sure you want to deactivate this user?",
+                    [
+                        {
+                            text: "Cancel",
+                            style: "cancel",
+                            onPress: () => setButtonLoading(false)
+                        },
+                        {
+                            text: "Confirm",
+                            onPress: async () => {
+                                await setUserInactive(user.id);
+                                navigation.push('Users');
+                                setButtonLoading(false);
+                            }
+                        }
+                    ]
+                );
+            }
+        } finally {
+            setButtonLoading(false);
+        }
+    };
 
     const openModal = (type: 'branch' | 'department') => setModalType(type);
     const closeModal = () => setModalType(null);
@@ -192,17 +237,29 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     }
 
     return (
-        <View className="flex flex-1 p-4">
-            <View className="flex flex-row items-center mb-4">
+        <View className="flex flex-1 p-2">
+            <View className='flex flex-row justify-between mb-2'>
                 <TouchableOpacity className="mr-2" onPress={() => navigation.navigate('Users')}>
                     <ChevronLeft height={28} width={28} color="#fe6500" />
                 </TouchableOpacity>
-                <Text className="font-bold text-lg">{user?.id !== 0 ? name : 'New User'}</Text>
+                <View className='pr-4 flex-1 items-center'>
+                    <Text className="font-bold text-lg">{user?.id !== 0 ? name : 'New User'}</Text>
+                </View>
+                {user && user.id != 0 && (
+                    <View>
+                        <TouchableOpacity
+                            onPress={() => userInactive()}
+                            className="rounded-full w-6 h-6 flex items-center justify-center mr-2"
+                        >
+                            <Trash2 height={20} width={20} />
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
-            <View className="bg-gray-200 h-[2px] w-full mb-4"></View>
+            <View className="w-full bg-gray-200 h-[2px] w-full mb-4"></View>
 
-            <View className="w-full pr-2 mb-3">
+            <View className="w-full pr-2 mb-3 ">
                 <Text className="text-gray-600 mb-1">Name</Text>
                 <TextInput
                     value={user?.name || ''}
@@ -343,10 +400,11 @@ const UserViewScreen = React.memo(({ route }: Props) => {
                     >
                         <View className="flex-1 flex flex-row items-center justify-center">
                             <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
-                            {loading && (
-                                <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
-                            )}
+
                         </View>
+                        {buttonLoading && (
+                            <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                        )}
                     </TouchableOpacity>
                 </View>
             )}

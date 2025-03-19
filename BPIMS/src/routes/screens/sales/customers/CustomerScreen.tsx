@@ -33,17 +33,22 @@ const CustomerScreen = React.memo(() => {
     }, []);
 
     const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        const userDetails = await getUserDetails();
-        setUser(userDetails);
-        if (userDetails) {
-            setBranchId(userDetails.branchId);
-            const response = await getCustomerList(userDetails.branchId, search);
-            if (response) {
-                setCustomers(response.data);
+        try {
+            setLoading(true);
+            const userDetails = await getUserDetails();
+            setUser(userDetails);
+            if (userDetails) {
+                setBranchId(userDetails.branchId);
+                const response = await getCustomerList(userDetails.branchId, search);
+                if (response) {
+                    setCustomers(response.data);
+                }
             }
+            setLoading(false);
         }
-        setLoading(false);
+        finally {
+            setLoading(false);
+        }
     }, [branchId, search]);
 
     useEffect(() => {

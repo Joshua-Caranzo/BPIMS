@@ -36,8 +36,9 @@
     "react-native-optimized-flatlist": "^1.0.4",
     "react-native-reanimated": "^3.16.7",
     "react-native-safe-area-context": "^5.2.0",
-    "react-native-screens": "^4.6.0",
+    "react-native-screens": "^4.9.2",
     "react-native-svg": "^15.11.1",
+    "react-native-thermal-printer": "^2.3.6",
     "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {

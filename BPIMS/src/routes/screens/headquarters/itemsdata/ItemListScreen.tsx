@@ -49,16 +49,21 @@ const ItemListScreen = () => {
 
     useEffect(() => {
         const getCategoryList = async () => {
-            setLoadingCategory(true);
-            FastImage.clearMemoryCache();
-            FastImage.clearDiskCache();
-            const response = await getCategoriesHQ();
-            if (response.isSuccess) {
-                setCategories(response.data);
-            } else {
-                Alert.alert('An error occurred', response.message);
+            try {
+                setLoadingCategory(true);
+                FastImage.clearMemoryCache();
+                FastImage.clearDiskCache();
+                const response = await getCategoriesHQ();
+                if (response.isSuccess) {
+                    setCategories(response.data);
+                } else {
+                    Alert.alert('An error occurred', response.message);
+                }
+                setLoadingCategory(false);
             }
-            setLoadingCategory(false);
+            finally {
+                setLoadingCategory(false);
+            }
         };
 
         getCategoryList();
@@ -75,27 +80,33 @@ const ItemListScreen = () => {
     }, [activeCategory, page, search]);
 
     const getItems = async (categoryId: number, page: number, search: string) => {
-        if (activeCategory !== lastCategory) {
-            setProducts([]);
+        try {
+            if (activeCategory !== lastCategory) {
+                setProducts([]);
+            }
+
+            if (!loadingMore) setLoading(true);
+            const userResponse = await getUserDetails();
+            setUser(userResponse);
+
+            const response = await getProductsHQ(categoryId, page, search.trim());
+
+            if (response.isSuccess) {
+                let newProducts = response.data;
+
+                setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
+
+                setHasMoreData(newProducts.length > 0 && products.length + newProducts.length < (response.totalCount || 0));
+            } else {
+                setProducts([]);
+            }
+            setLoading(false);
+            setLoadingMore(false);
         }
-
-        if (!loadingMore) setLoading(true);
-        const userResponse = await getUserDetails();
-        setUser(userResponse);
-
-        const response = await getProductsHQ(categoryId, page, search.trim());
-
-        if (response.isSuccess) {
-            let newProducts = response.data;
-
-            setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
-
-            setHasMoreData(newProducts.length > 0 && products.length + newProducts.length < (response.totalCount || 0));
-        } else {
-            setProducts([]);
+        finally {
+            setLoading(false);
+            setLoadingMore(false);
         }
-        setLoading(false);
-        setLoadingMore(false);
     };
 
     const loadMoreCategories = () => {

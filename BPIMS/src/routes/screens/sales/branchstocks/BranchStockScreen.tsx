@@ -63,32 +63,38 @@ const BranchStockScreen = React.memo(() => {
 
     const getItems = useCallback(
         async (categoryId: number, page: number, search: string) => {
-            if (activeCategory !== lastCategory) {
-                setStocks([]);
-            }
-            if (!loadMore) setLoading(true);
+            try {
+                if (activeCategory !== lastCategory) {
+                    setStocks([]);
+                }
+                if (!loadMore) setLoading(true);
 
-            const userResponse = await getUserDetails();
-            setUser(userResponse);
+                const userResponse = await getUserDetails();
+                setUser(userResponse);
 
-            const response = await getBranchStocks(
-                categoryId,
-                page,
-                search.trim(),
-                Number(userResponse?.branchId)
-            );
-            if (response.isSuccess) {
-                const newProducts = response.data;
-                setStocks((prevProducts) =>
-                    page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                const response = await getBranchStocks(
+                    categoryId,
+                    page,
+                    search.trim(),
+                    Number(userResponse?.branchId)
                 );
-                setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
-            } else {
-                setStocks([]);
-            }
+                if (response.isSuccess) {
+                    const newProducts = response.data;
+                    setStocks((prevProducts) =>
+                        page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                    );
+                    setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
+                } else {
+                    setStocks([]);
+                }
 
-            setLoading(false);
-            setLoadMore(false);
+                setLoading(false);
+                setLoadMore(false);
+            }
+            finally {
+                setLoading(false);
+                setLoadMore(false);
+            }
         },
         [activeCategory, lastCategory, loadMore, stocks.length]
     );

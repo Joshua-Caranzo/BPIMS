@@ -23,10 +23,13 @@ const DiscountScreen = React.memo(({ route }: Props) => {
   const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
 
   const applyDiscount = useCallback(async () => {
-    setLoading(true);
-    await updateDiscount(Number(disc));
-    setLoading(false);
-    navigation.navigate('Cart', { user });
+    try {
+      setLoading(true);
+      await updateDiscount(Number(disc));
+      navigation.navigate('Cart', { user });
+    } finally {
+      setLoading(false);
+    }
   }, [disc, navigation]);
 
   const handleKeyPress = useCallback(

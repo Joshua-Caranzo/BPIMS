@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { UserDetails } from "../../../types/userType";
+import { ObjectDto, UserDetails } from "../../../types/userType";
 import WHSidebar from "../../../../components/WHSidebar";
 import { getUserDetails } from "../../../utils/auth";
 import { Menu, PlusCircle, Search } from "react-native-feather";
 import { WHStockDto } from "../../../types/whType";
-import { getWHStocks } from "../../../services/whRepo";
+import { getSupplierList, getWHStocks } from "../../../services/whRepo";
 import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { WhStockStackParamList } from "../../../navigation/navigation";
 import { getSocketData } from "../../../utils/apiService";
 import { debounce } from "lodash";
@@ -26,10 +26,19 @@ const WHScreen = React.memo(() => {
     const [criticalCount, setCriticalCount] = useState(0);
     const inputRef = useRef<TextInput>(null);
     const navigation = useNavigation<NativeStackNavigationProp<WhStockStackParamList>>();
+    const [suppliers, setSuppliers] = useState<ObjectDto[]>([]);
 
     useEffect(() => {
         getItems(activeCategory, page, search);
     }, [search, activeCategory, page]);
+
+    useEffect(() => {
+        const fetchSuppliers = async () => {
+            const result = await getSupplierList("");
+            setSuppliers(result.data);
+        };
+        fetchSuppliers();
+    }, [search]);
 
     const debouncedSetCriticalCount = useCallback(debounce((count: number) => {
         setCriticalCount(count);
@@ -50,32 +59,38 @@ const WHScreen = React.memo(() => {
 
     const getItems = useCallback(
         async (categoryId: number, page: number, search: string) => {
-            if (activeCategory !== lastCategory) {
-                setStocks([]);
-            }
-            if (!loadMore) setLoading(true);
+            try {
+                if (activeCategory !== lastCategory) {
+                    setStocks([]);
+                }
+                if (!loadMore) setLoading(true);
 
-            const userResponse = await getUserDetails();
-            setUser(userResponse);
+                const userResponse = await getUserDetails();
+                setUser(userResponse);
 
-            const response = await getWHStocks(
-                categoryId,
-                page,
-                search.trim(),
-                Number(userResponse?.branchId)
-            );
-            if (response.isSuccess) {
-                const newProducts = response.data;
-                setStocks((prevProducts) =>
-                    page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                const response = await getWHStocks(
+                    categoryId,
+                    page,
+                    search.trim(),
+                    Number(userResponse?.branchId)
                 );
-                setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
-            } else {
-                setStocks([]);
-            }
+                if (response.isSuccess) {
+                    const newProducts = response.data;
+                    setStocks((prevProducts) =>
+                        page === 1 ? newProducts : [...prevProducts, ...newProducts]
+                    );
+                    setHasMoreData(newProducts.length > 0 && stocks.length + newProducts.length < (response.totalCount || 0));
+                } else {
+                    setStocks([]);
+                }
 
-            setLoading(false);
-            setLoadMore(false);
+                setLoading(false);
+                setLoadMore(false);
+            }
+            finally {
+                setLoading(false);
+                setLoadMore(false);
+            }
         },
         [activeCategory, lastCategory, loadMore, stocks.length]
     );
@@ -116,7 +131,7 @@ const WHScreen = React.memo(() => {
 
     const handleStockInput = useCallback((item: WHStockDto) => {
         if (user) {
-            navigation.navigate('StockInput', { item, user });
+            navigation.navigate('StockInput', { item, user, suppliers });
         }
     }, [user]);
 

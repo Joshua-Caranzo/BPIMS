@@ -58,30 +58,35 @@ const ItemViewScreen = ({ route }: Props) => {
     };
 
     const fetchItem = useCallback(async () => {
-        setLoading(true);
-        FastImage.clearMemoryCache();
-        FastImage.clearDiskCache();
-        if (item.id !== 0) {
-            setEditingItem(item);
-        } else {
-            const newItem: ItemHQDto = {
-                id: 0,
-                name: "",
-                categoryId: 0,
-                price: 0.00,
-                cost: 0.00,
-                isManaged: false,
-                imagePath: null,
-                sellByUnit: false,
-                moq: 0.00,
-                categoryName: "",
-                unitOfMeasure: "",
-                criticalValue: 0.00,
-                imageUrl: null
-            };
-            setEditingItem(newItem);
+        try {
+            setLoading(true);
+            FastImage.clearMemoryCache();
+            FastImage.clearDiskCache();
+            if (item.id !== 0) {
+                setEditingItem(item);
+            } else {
+                const newItem: ItemHQDto = {
+                    id: 0,
+                    name: "",
+                    categoryId: 0,
+                    price: 0.00,
+                    cost: 0.00,
+                    isManaged: false,
+                    imagePath: null,
+                    sellByUnit: false,
+                    moq: 0.00,
+                    categoryName: "",
+                    unitOfMeasure: "",
+                    criticalValue: 0.00,
+                    imageUrl: null
+                };
+                setEditingItem(newItem);
+            }
+            setLoading(false);
         }
-        setLoading(false);
+        finally {
+            setLoading(false);
+        }
     }, [item]);
 
     useEffect(() => {
@@ -177,26 +182,29 @@ const ItemViewScreen = ({ route }: Props) => {
     }, []);
 
     const handleSave = useCallback(async () => {
-        Keyboard.dismiss();
-        setLoading(true);
+        try {
+            Keyboard.dismiss();
+            setLoading(true);
 
-        const formData = new FormData();
-        Object.entries(editingItem).forEach(([key, value]) => formData.append(key, String(value)));
-        if (fileUrl) {
-            const today = new Date();
-            const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
-            const firstName = editingItem.name?.split(' ')[0] || 'Unknown';
-            formData.append('file', {
-                uri: fileUrl,
-                name: `${firstName}${formattedDate}.jpg`,
-                type: 'image/jpeg',
-            } as any);
+            const formData = new FormData();
+            Object.entries(editingItem).forEach(([key, value]) => formData.append(key, String(value)));
+            if (fileUrl) {
+                const today = new Date();
+                const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
+                const firstName = editingItem.name?.split(' ')[0] || 'Unknown';
+                formData.append('file', {
+                    uri: fileUrl,
+                    name: `${firstName}${formattedDate}.jpg`,
+                    type: 'image/jpeg',
+                } as any);
+            }
+            const result = await saveItem(formData);
+
+            navigation.push('Items')
         }
-        const result = await saveItem(formData);
-
-        const itemData = await getProductHQ(result.data)
-        setEditingItem(itemData.data);
-        setLoading(false);
+        finally {
+            setLoading(false);
+        }
     }, [editingItem, fileUrl]);
 
     const removeItem = useCallback(
@@ -580,10 +588,11 @@ const ItemViewScreen = ({ route }: Props) => {
                                     >
                                         <View className="flex-1 flex flex-row items-center justify-center">
                                             <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'} text-center`}>SAVE</Text>
-                                            {loading && (
-                                                <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
-                                            )}
+
                                         </View>
+                                        {loading && (
+                                            <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                                        )}
                                     </TouchableOpacity>
                                 </View>
                             )

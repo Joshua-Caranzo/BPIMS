@@ -33,12 +33,17 @@ const CustomerListScreen = React.memo(({ route }: Props) => {
   }, []);
 
   const fetchCustomers = useCallback(async () => {
-    setLoading(true);
-    const response = await getCustomerList(user.branchId, search);
-    if (response) {
-      setCustomers(response.data);
+    try {
+      setLoading(true);
+      const response = await getCustomerList(user.branchId, search);
+      if (response) {
+        setCustomers(response.data);
+      }
+      setLoading(false);
     }
-    setLoading(false);
+    finally {
+      setLoading(false);
+    }
   }, [user, search]);
 
   useEffect(() => {

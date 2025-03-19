@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Keyboard, ScrollView, ActivityIndicator } from 'react-native';
-import { Camera, ChevronLeft } from 'react-native-feather';
+import { View, Text, TouchableOpacity, TextInput, Keyboard, ScrollView, ActivityIndicator, Modal, TouchableWithoutFeedback, FlatList } from 'react-native';
+import { Camera, ChevronLeft, XCircle } from 'react-native-feather';
 import DatePicker from 'react-native-date-picker';
 import { StockInputDto, StockInputHistoryDto } from '../../../types/stockType';
 import { useNavigation } from '@react-navigation/native';
@@ -12,11 +12,13 @@ import NumericKeypad from '../../../../components/NumericKeypad';
 import FastImage from 'react-native-fast-image';
 import { createWHStockInput, getWHStockHistory } from '../../../services/whRepo';
 import { WHStockInputDto, WHStockInputHistoryDto } from '../../../types/whType';
+import { ObjectDto } from '../../../types/userType';
 
 type Props = NativeStackScreenProps<StockMonitorParamList, 'StockInput'>;
 
 const StockInputScreen = memo(({ route }: Props) => {
     const { item, user, branchId, whId, whQty } = route.params;
+    const suppliers: ObjectDto[] = route.params.suppliers;
     const [loading, setLoading] = useState<boolean>(false);
     const [itemHistory, setItemHistory] = useState<StockInputHistoryDto[]>([]);
     const [whItemHistory, setWHItemHistory] = useState<WHStockInputHistoryDto[]>([]);
@@ -29,6 +31,8 @@ const StockInputScreen = memo(({ route }: Props) => {
     const [editingField, setEditingField] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [lastSavedValue, setLastSavedValue] = useState<number | string | Date>(0);
+    const [openSuppliers, setOpenSuppliers] = useState<boolean>(false);
+    const isBranchIdPresent = stockInput?.branchId !== null && stockInput?.branchId !== undefined;
 
     const fieldLabels: { [key: string]: string } = useMemo(() => ({
         qty: 'Quantity',
@@ -63,22 +67,29 @@ const StockInputScreen = memo(({ route }: Props) => {
             qty: 0,
             actualTotalQty: 0,
             expectedTotalQty: 0,
-            deliveredBy: "",
+            deliveredBy: 0,
             deliveryDate: new Date(),
+            deliveredByName: ""
         };
         setStockInput(newStock)
         return newStock;
     }, [branchId, whId]);
 
     const getStockInputHistory = useCallback(async () => {
-        if (branchId) {
-            const response = await getStockHistory(branchId);
-            setItemHistory(response.data);
+        try {
+            setLoading(true)
+            if (branchId) {
+                const response = await getStockHistory(branchId);
+                setItemHistory(response.data);
+            }
+            if (whId) {
+                const response = await getWHStockHistory(whId);
+                setWHItemHistory(response.data);
+            }
+            setLoading(false)
         }
-        if (whId) {
-            const response = await getWHStockHistory(whId);
-            console.log(response)
-            setWHItemHistory(response.data);
+        finally {
+            setLoading(false)
         }
     }, [branchId, whId]);
 
@@ -108,26 +119,45 @@ const StockInputScreen = memo(({ route }: Props) => {
     }, [handleChange]);
 
     const validateForm = useCallback(() => {
+        if (!stockInput) {
+            setIsValid(false);
+            return;
+        }
+
+        const branchValid = !!branchId;
+
         const isFormValid = (
-            stockInput?.qty !== 0 &&
-            stockInput?.actualTotalQty !== 0 &&
-            stockInput?.expectedTotalQty !== 0 &&
-            stockInput?.deliveredBy?.trim() !== "" &&
-            stockInput?.deliveryDate instanceof Date
+            stockInput.qty !== 0 &&
+            stockInput.actualTotalQty !== 0 &&
+            stockInput.expectedTotalQty !== 0 &&
+            stockInput.deliveryDate instanceof Date &&
+            (!branchValid || (branchValid && !!stockInput.deliveredBy))
         );
-        setIsValid(isFormValid);
-    }, [stockInput]);
+
+        setIsValid(!!isFormValid);
+    }, [stockInput, branchId]);
+
 
     const saveStockInput = useCallback(async () => {
-        if (stockInput)
-            if (isStockInputDto(stockInput)) {
-                await createStockInput(stockInput);
-            }
-            else {
-                await createWHStockInput(stockInput)
-            }
-        initializeStockInput();
-        await getStockInputHistory();
+        try {
+            setLoading(true)
+
+            if (stockInput)
+                if (isStockInputDto(stockInput)) {
+                    await createStockInput(stockInput);
+                }
+                else {
+                    if (stockInput.deliveredBy == 0)
+                        stockInput.deliveredBy = null
+                    await createWHStockInput(stockInput)
+                }
+            initializeStockInput();
+            await getStockInputHistory();
+            setLoading(false)
+        }
+        finally {
+            setLoading(false)
+        }
     }, [stockInput, initializeStockInput, getStockInputHistory]);
 
     const isStockInputDto = (input: StockInputDto | WHStockInputDto | undefined): input is StockInputDto => {
@@ -210,6 +240,42 @@ const StockInputScreen = memo(({ route }: Props) => {
         setInputMode(false);
         setEditingField(null);
     };
+
+    const renderModal = () => (
+        <Modal transparent visible={openSuppliers} animationType="slide">
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <View className="flex-1 justify-center items-center bg-black/50">
+                    <View className="bg-white p-5 rounded-lg w-4/5 relative">
+                        <TouchableOpacity className="absolute top-2 right-2 p-1" onPress={() => setOpenSuppliers(false)}>
+                            <XCircle width={24} height={24} />
+                        </TouchableOpacity>
+
+                        <Text className="text-lg font-bold mb-2 text-center">
+                            Select Supplier
+                        </Text>
+
+                        <FlatList
+                            data={suppliers}
+                            keyExtractor={(item) => item.id.toString()}
+                            keyboardShouldPersistTaps="handled"
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    className="p-3 border-b border-gray-200"
+                                    onPress={() => {
+                                        handleChange('deliveredBy', item.id);
+                                        handleChange('deliveredByName', item.name);
+                                        setOpenSuppliers(false);
+                                    }}
+                                >
+                                    <Text className="text-base">{item.name}</Text>
+                                </TouchableOpacity>
+                            )}
+                        />
+                    </View>
+                </View>
+            </TouchableWithoutFeedback>
+        </Modal>
+    );
 
     const renderInputMode = useMemo(() => (
         <View style={{ flex: 1 }}>
@@ -309,10 +375,30 @@ const StockInputScreen = memo(({ route }: Props) => {
                                     onConfirm={(date) => { setOpenDate(false); handleChange('deliveryDate', date); }}
                                     onCancel={() => setOpenDate(false)} />
                             </View>
-                            <View className='w-1/2'>
-                                <Text className="text-gray-700 text-sm font-bold">Delivered By</Text>
-                                <TextInput value={stockInput?.deliveredBy || ""} editable={true} className="border-b border-gray-400 py-2 text-black" placeholder="Enter Name" placeholderTextColor="gray" onChangeText={(text) => handleChange("deliveredBy", text)} selectionColor="#fe6500" />
-                            </View>
+                            {branchId ? (
+                                <View className='w-1/2'>
+                                    <Text className="text-gray-700 text-sm font-bold">Delivered By</Text>
+                                    <TextInput
+                                        value={stockInput?.deliveredBy?.toString() || ""}
+                                        editable={true}
+                                        className="border-b border-gray-400 py-2 text-black"
+                                        placeholder="Enter Name"
+                                        placeholderTextColor="gray"
+                                        onChangeText={(text) => handleChange("deliveredBy", text)}
+                                        selectionColor="#fe6500"
+                                    />
+                                </View>
+                            ) : (
+                                <View className='w-1/2'>
+                                    <Text className="text-gray-700 text-sm font-bold">Delivered By</Text>
+                                    <TouchableOpacity
+                                        className="border-b border-gray-400 py-2"
+                                        onPress={() => setOpenSuppliers(true)}
+                                    >
+                                        <Text className={`${stockInput.deliveredBy ? 'text-black' : 'text-gray-500'} ml-1`}>{stockInput.deliveredByName?.toString() || 'Select Supplier'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
 
                         <View className='flex flex-row w-full gap-2 mt-4'>
@@ -331,9 +417,11 @@ const StockInputScreen = memo(({ route }: Props) => {
                         </View>
                     </View>
                 )}
-
+                {loading && (
+                    <ActivityIndicator className='mt-4' size={'small'} color={'#fe6500'}></ActivityIndicator>
+                )}
                 {itemHistory.length > 0 && (
-                    <View className="flex flex-column mt-4 h-[37vh] md:h-[50vh] lg:h-[60vh] pb-2">
+                    <View className="flex flex-column mt-4 h-[35vh] md:h-[50vh] lg:h-[60vh] pb-2">
                         <Text className="text-gray-700 text-sm font-bold">Item History</Text>
                         <ScrollView className="w-full mb-8 mt-1">
                             <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
@@ -354,7 +442,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                 )}
 
                 {whItemHistory.length > 0 && (
-                    <View className="flex flex-column mt-4 h-[37vh] md:h-[50vh] lg:h-[60vh] pb-2">
+                    <View className="flex flex-column mt-4 h-[35vh] md:h-[50vh] lg:h-[60vh] pb-2">
                         <Text className="text-gray-700 text-sm font-bold">Item History</Text>
                         <ScrollView className="w-full mb-8 mt-1">
                             <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
@@ -366,7 +454,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                             {whItemHistory.map((whOrder) => (
                                 <View key={whOrder.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
                                     <Text className="text-black text-xs flex-1 text-left">{item.sellByUnit ? Math.round(whOrder.qty) : Number(whOrder.qty).toFixed(2)}</Text>
-                                    <Text className="text-black text-xs flex-1 text-center">{whOrder.deliveredBy}</Text>
+                                    <Text className="text-black text-xs flex-1 text-center">{whOrder.deliveredByName || "(No Supplier)"}</Text>
                                     <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(whOrder.deliveryDate.toString())}</Text>
                                 </View>
                             ))}
@@ -376,16 +464,23 @@ const StockInputScreen = memo(({ route }: Props) => {
             </View>
             {!keyboardVisible && (
                 <View className='items-center absolute bottom-0 left-0 right-0 pb-2'>
-                    <TouchableOpacity onPress={saveStockInput} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`} disabled={!isValid}>
-                        <View className="flex-1 flex flex-row items-center justify-center">
+                    <TouchableOpacity
+                        onPress={saveStockInput}
+                        className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
+                        disabled={!isValid}
+                    >
+                        <View className="flex-1 items-center">
                             <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
-                            {loading == true && <ActivityIndicator size={'small'} color={'#fe6500'} />}
                         </View>
+                        {loading && (
+                            <ActivityIndicator size={'small'} color={`${!isValid ? '#fe6500' : 'white'}`}></ActivityIndicator>
+                        )}
                     </TouchableOpacity>
+                    {renderModal()}
                 </View>
             )}
-        </View>
-    ), [handleChange, item, itemHistory, whItemHistory, keyboardVisible, navigation, openDate, saveStockInput, stockInput, user?.name, isValid]);
+        </View >
+    ), [handleChange, item, itemHistory, whItemHistory, keyboardVisible, navigation, openDate, saveStockInput, stockInput, user?.name, isValid, openSuppliers, suppliers]);
 
     return (
         <View className="flex flex-1">

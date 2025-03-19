@@ -17,9 +17,11 @@ import { debounce } from 'lodash';
 import { getSocketData } from '../../../utils/apiService';
 import {
     capitalizeFirstLetter,
+    formatTransactionDateOnly,
     formatTransactionTime,
 } from '../../../utils/dateFormat';
 import {
+    AnalysisReportResponse,
     DailyTransactionDto,
     ReportRequest,
     SalesGraphDto,
@@ -28,6 +30,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SalesReportParamList } from '../../../navigation/navigation';
+import { FilterType, SalesData } from '../../../types/salesType';
+import { parse } from 'react-native-svg';
+import { OrderHistory } from '../../../types/customerType';
+import { getTransactionHistory } from '../../../services/customerRepo';
+import { getAllTransactionHistory } from '../../../services/salesRepo';
 
 const SalesReportScreen = React.memo(() => {
     const [user, setUser] = useState<UserDetails>();
@@ -41,7 +48,24 @@ const SalesReportScreen = React.memo(() => {
     const [loading, setLoading] = useState<boolean>(true);
     const socketRef = useRef<WebSocket | null>(null);
     const salesSocketRef = useRef<WebSocket | null>(null);
+    const analysisSocketRef = useRef<WebSocket | null>(null);
+    const analyticsSocketRef = useRef<WebSocket | null>(null);
     const navigation = useNavigation<NativeStackNavigationProp<SalesReportParamList>>();
+    const [selectedFilter, setSelectedFilter] = useState<FilterType>("Month");
+    const screenWidth = Dimensions.get('window').width;
+    const [salesData, setSalesData] = useState<SalesData>();
+    const [analysisReport, setAnalysisReport] = useState<AnalysisReportResponse>();
+    const [transactionHistory, setTransactionHistory] = useState<DailyTransactionDto[]>([]);
+    const [transactionHistoryCount, setTransactionHistoryCount] = useState<number>();
+
+    const chartPadding = 40; // Adjust padding/margin as needed
+
+    const filteredData = salesData ? salesData[selectedFilter] : [];
+
+    const dataLength = filteredData.length || 1; // Avoid division by zero
+    const calculatedSpacing = selectedFilter === "All" || "Year"
+        ? Math.max((screenWidth - chartPadding) / dataLength, 60)  // If "all" is selected, min 60
+        : Math.max((screenWidth - chartPadding) / dataLength, 30); // Otherwise, min 30
 
     useEffect(() => {
         const fetchUserDetails = async () => {
@@ -50,6 +74,16 @@ const SalesReportScreen = React.memo(() => {
         };
         fetchUserDetails();
     }, []);
+
+    useEffect(() => {
+        const fetchTransactionHistory = async () => {
+            const history = await getAllTransactionHistory(user?.branchId || 1, 1, "");
+            setTransactionHistory(history.data);
+            setTransactionHistoryCount(history.totalCount || 0)
+        };
+        fetchTransactionHistory();
+    }, [user]);
+
 
     useEffect(() => {
         if (!user) {
@@ -102,6 +136,54 @@ const SalesReportScreen = React.memo(() => {
         };
     }, [user]);
 
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        const analysisSocket = getSocketData('analyticsData', { branchId: user.branchId });
+        analysisSocketRef.current = analysisSocket;
+
+        analysisSocket.onmessage = (event) => {
+            try {
+                const parsedData: SalesData = JSON.parse(event.data);
+                debouncedAnalyticsData(parsedData);
+            } catch (error) {
+                console.error('Error parsing WebSocket data:', error);
+            }
+        };
+
+        return () => {
+            if (analysisSocketRef.current) {
+                analysisSocketRef.current.close();
+            }
+        };
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        const analyticsSocket = getSocketData('analysisReport', { branchId: user.branchId });
+        analyticsSocketRef.current = analyticsSocket;
+
+        analyticsSocket.onmessage = (event) => {
+            try {
+                const parsedData: AnalysisReportResponse = JSON.parse(event.data);
+                debouncedAnalysisData(parsedData);
+            } catch (error) {
+                console.error('Error parsing WebSocket data:', error);
+            }
+        };
+
+        return () => {
+            if (analyticsSocketRef.current) {
+                analyticsSocketRef.current.close();
+            }
+        };
+    }, [user]);
+
     const debouncedSetGraphData = useCallback(
         debounce((data: SalesGraphDto[]) => {
             setGraphData(data);
@@ -126,6 +208,21 @@ const SalesReportScreen = React.memo(() => {
         []
     );
 
+    const debouncedAnalyticsData = useCallback(
+        debounce((data: SalesData) => {
+            setSalesData(data);
+        }, 100),
+        []
+    );
+
+    const debouncedAnalysisData = useCallback(
+        debounce((data: AnalysisReportResponse) => {
+            setAnalysisReport(data);
+        }, 100),
+        []
+    );
+
+
     const handleChangeCategory = useCallback((id: number) => {
         setActiveCategory(id);
     }, []);
@@ -144,7 +241,6 @@ const SalesReportScreen = React.memo(() => {
         ];
     }, [graphData]);
 
-    const screenWidth = Dimensions.get('window').width;
     const spacing = useMemo(() => {
         const numberOfDataPoints = chartData.length;
         return (screenWidth - 70) / (numberOfDataPoints - 1);
@@ -210,7 +306,7 @@ const SalesReportScreen = React.memo(() => {
                         <LineChart
                             isAnimated
                             animateOnDataChange
-                            thickness={6}
+                            thickness={3}
                             height={200}
                             color="#fe6500"
                             noOfSections={3}
@@ -246,21 +342,44 @@ const SalesReportScreen = React.memo(() => {
                     <View className="items-center flex flex-row justify-between w-full mt-1 px-4">
                         <Text className="text-lg text-black font-bold">₱ {totalAmount.toFixed(2)}</Text>
                         <Text className="text-sm text-gray-600">Branch</Text>
+
+                    </View>
+
+                    <View className="w-full h-[2px] bg-gray-500 mt-4"></View>
+
+                    <View className="items-center flex flex-row justify-between w-full mt-1 px-4">
+                        <Text className="text-lg text-black font-bold">Daily Transactions</Text>
+                        <TouchableOpacity onPress={() => {
+                            if (transactionHistory && user) {
+                                navigation.navigate('TransactionList', { transactions: transactionHistory, user });
+                            }
+                        }}>
+                            <Text className="text-sm text-[#fe6500]">All Transactions</Text>
+                        </TouchableOpacity>
                     </View>
                     <ScrollView className="w-full mt-4 px-4 h-[40%]">
                         {transactions.map((transaction, index) => (
                             <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory', { transactionId: transaction.id })} key={index} className="mb-3 py-1 bg-gray rounded-lg border-b border-gray-500">
                                 <View className="flex-row justify-between">
-                                    <View className="flex flex-row">
-                                        <Text className="text-black font-semibold">
-                                            ₱ {transaction.totalAmount.toFixed(2)}
-                                        </Text>
+
+                                    <View className="flex flex-row justify-between w-full">
+
+                                        <Text className="text-gray-500 font-medium">{transaction.slipNo}</Text>
                                         <Text className="text-gray-500 font-medium">
-                                            {' '}by {capitalizeFirstLetter(transaction.cashierName)},{' '}
                                             {formatTransactionTime(transaction.transactionDate.toString())}
                                         </Text>
                                     </View>
-                                    <Text className="text-gray-500 font-medium">{transaction.slipNo}</Text>
+                                </View>
+                                <View className="flex-row justify-between">
+
+                                    <View className="flex flex-row w-full justify-between">
+                                        <Text className="text-black font-semibold">
+                                            ₱ {Number(transaction.totalAmount).toFixed(2)}
+                                        </Text>
+                                        <Text className="text-gray-500 font-medium">
+                                            By: {capitalizeFirstLetter(transaction.cashierName)}
+                                        </Text>
+                                    </View>
                                 </View>
                                 <View className="flex-row items-center">
                                     <Text className="text-gray-700 font-medium">
@@ -295,75 +414,94 @@ const SalesReportScreen = React.memo(() => {
                 </View>
             )}
             {activeCategory === 2 && (
-                <ScrollView className="w-full p-4">
-                    <Text className="text-lg font-bold text-center mb-4">Sales Analysis</Text>
+                <View className="w-full justify-center items-center bg-gray mt-2 p-2">
+                    <View className="w-full">
 
-                    <View className="bg-white p-4 rounded-lg shadow-md mb-6">
-                        <Text className="text-md font-semibold mb-2">Sales Over a Year</Text>
+                        <View className="w-full flex-row justify-around mb-4">
+                            {(["Week", "Month", "Year", "All"] as FilterType[]).map((filter) => (
+                                <TouchableOpacity
+                                    key={filter}
+                                    className={`px-4 py-2 rounded ${selectedFilter === filter ? "bg-[#fe6500]" : "bg-transparent"
+                                        }`}
+                                    onPress={() => setSelectedFilter(filter)}
+                                >
+                                    <Text className={`${selectedFilter === filter ? "text-white" : "text-black"
+                                        }`}>{filter}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
                         <LineChart
-                            data={[
-                                { value: 5000, label: 'Jan' },
-                                { value: 8000, label: 'Feb' },
-                                { value: 6000, label: 'Mar' },
-                                { value: 10000, label: 'Apr' },
-                                { value: 7000, label: 'May' },
-                                { value: 9000, label: 'Jun' },
-                                { value: 12000, label: 'Jul' },
-                                { value: 15000, label: 'Aug' },
-                                { value: 11000, label: 'Sep' },
-                                { value: 13000, label: 'Oct' },
-                                { value: 14000, label: 'Nov' },
-                                { value: 16000, label: 'Dec' },
-                            ]}
-                            thickness={4}
+                            data={filteredData}
+                            width={screenWidth - 40}
+                            animateOnDataChange
+                            thickness={3}
                             height={200}
-                            color="#4CAF50"
+                            color="#fe6500"
                             noOfSections={3}
+                            areaChart
+                            startFillColor="rgba(254, 101, 0, 0.4)"
+                            endFillColor="rgba(243, 244, 246, 0.4)"
+                            startOpacity={0.4}
+                            endOpacity={0.4}
+                            hideRules
+                            yAxisColor="transparent"
+                            xAxisColor="transparent"
+                            dataPointsColor="#fe6500"
+                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10, textAlign: 'center' }}
                             yAxisTextStyle={{ color: '#000', fontSize: 10 }}
-                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
-                            dataPointsColor="#4CAF50"
-                            startFillColor="rgba(76, 175, 80, 0.3)"
-                            endFillColor="rgba(76, 175, 80, 0.1)"
-                            startOpacity={0.3}
-                            endOpacity={0.1}
                             adjustToWidth
                             hideYAxisText
-                            disableScroll
-                            spacing={22}
-                        />
-                    </View>
+                            initialSpacing={20}
+                            endSpacing={20}
+                            dataPointsWidth={20}
+                            spacing={calculatedSpacing}
+                            textColor="black"
 
-                    <View className="bg-white p-4 rounded-lg shadow-md">
-                        <Text className="text-md font-semibold mb-2">Sales Breakdown Per Month</Text>
-                        <BarChart
-                            data={[
-                                { value: 3000, label: 'Jan' },
-                                { value: 5000, label: 'Feb' },
-                                { value: 4000, label: 'Mar' },
-                                { value: 7000, label: 'Apr' },
-                                { value: 6000, label: 'May' },
-                                { value: 7500, label: 'Jun' },
-                                { value: 9000, label: 'Jul' },
-                                { value: 11000, label: 'Aug' },
-                                { value: 9500, label: 'Sep' },
-                                { value: 12000, label: 'Oct' },
-                                { value: 13000, label: 'Nov' },
-                                { value: 14000, label: 'Dec' },
-                            ]}
-                            barWidth={12}
-                            height={200}
-                            color="blue"
-                            noOfSections={4}
-                            hideRules
-                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
-                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10 }}
-                            hideYAxisText
-                            disableScroll
-                            spacing={10}
                         />
                     </View>
-                </ScrollView>
-            )}
+                    {analysisReport && (
+                        <View className="w-full mt-4 p-4">
+                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
+                                <View className="flex flex-column items-center">
+                                    <Text
+                                        className={`font-semibold text-lg ${analysisReport.percentChange > 0 ? 'text-green-600' : 'text-red-600'
+                                            }`}
+                                    >
+                                        {analysisReport.percentChange > 0 ? '▲' : '▼'} {analysisReport.percentChange}%
+                                    </Text>
+                                    <Text className="text-gray-500 text-xs">This month vs avg months</Text>
+                                </View>
+                            </View>
+                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
+                                <View className="flex flex-column items-center">
+                                    <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesAmount}</Text>
+                                    <Text className="text-gray-500 text-xs">Highest Sales – {formatTransactionDateOnly(analysisReport.highestSalesDate || "")}</Text>
+                                </View>
+                            </View>
+                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
+                                <View className="flex flex-column items-center">
+                                    <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesMonthAmount}</Text>
+                                    <Text className="text-gray-500 text-xs">Highest Sales This Month – {formatTransactionDateOnly(analysisReport.highestSalesMonthDate || "")}</Text>
+                                </View>
+                            </View>
+                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
+                                <View className="flex flex-column items-center">
+                                    <Text className="text-blue-600 font-semibold text-lg">{analysisReport.highOrderPercentage}</Text>
+                                    <Text className="text-gray-500 text-xs">High-value orders (₱1,500+)</Text>
+                                </View>
+                            </View>
+                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
+                                <View className="flex flex-column items-center">
+                                    <Text className="text-orange-600 font-semibold text-lg">{analysisReport.peakPeriod}</Text>
+                                    <Text className="text-gray-500 text-xs">Peak Sales Hours</Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            )
+            }
         </View>
     );
 });

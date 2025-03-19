@@ -37,14 +37,19 @@ const CartScreen = React.memo(({ route }: Props) => {
 
   const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
   const fetchCartItems = useCallback(async () => {
-    setLoading(true)
-    const result = await getCart();
-    setCartItems(result.data.cartItems);
-    setCart(result.data.cart);
-    if (result.data.cartItems.length === 0) {
-      navigation.navigate('Item');
+    try {
+      setLoading(true)
+      const result = await getCart();
+      setCartItems(result.data.cartItems);
+      setCart(result.data.cart);
+      if (result.data.cartItems.length === 0) {
+        navigation.navigate('Item');
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    finally {
+      setLoading(false)
+    }
   }, [navigation]);
 
   useEffect(() => {
@@ -52,27 +57,37 @@ const CartScreen = React.memo(({ route }: Props) => {
   }, [fetchCartItems]);
 
   const handleDelete = useCallback(async () => {
-    setButtonLoading(true);
-    await deleteAllCartItems();
-    navigation.navigate('Item');
-    setButtonLoading(false);
+    try {
+      setButtonLoading(true);
+      await deleteAllCartItems();
+      navigation.navigate('Item');
+      setButtonLoading(false);
+    }
+    finally {
+      setButtonLoading(false);
+    }
   }, [navigation]);
 
   const updateItem = useCallback(
     async (cartItem: CartItems | undefined) => {
-      if (!cartItem) return;
+      try {
+        if (!cartItem) return;
 
-      setButtonLoading(true);
-      const quantityToUpdate = cartItem.sellByUnit
-        ? Number(quantity)
-        : Number(doubleQuantity);
-      await updateItemQuantity(cartItem.id, quantityToUpdate);
-      await fetchCartItems();
-      setSelectedItem(undefined);
-      setQuantity('0');
-      setDoubleQuantity('0.00');
-      setInputMode(false);
-      setButtonLoading(false);
+        setButtonLoading(true);
+        const quantityToUpdate = cartItem.sellByUnit
+          ? Number(quantity)
+          : Number(doubleQuantity);
+        await updateItemQuantity(cartItem.id, quantityToUpdate);
+        await fetchCartItems();
+        setSelectedItem(undefined);
+        setQuantity('0');
+        setDoubleQuantity('0.00');
+        setInputMode(false);
+        setButtonLoading(false);
+      }
+      finally {
+        setButtonLoading(false);
+      }
     },
     [quantity, doubleQuantity, fetchCartItems]
   );
@@ -121,16 +136,20 @@ const CartScreen = React.memo(({ route }: Props) => {
 
   const removeItem = useCallback(
     async (id: number | undefined) => {
-      if (!id) return;
-
-      setButtonLoading(true);
-      await removeCartItem(id);
-      await fetchCartItems();
-      setSelectedItem(undefined);
-      setQuantity('0');
-      setDoubleQuantity('0.00');
-      setInputMode(false);
-      setButtonLoading(false);
+      try {
+        if (!id) return;
+        setButtonLoading(true);
+        await removeCartItem(id);
+        await fetchCartItems();
+        setSelectedItem(undefined);
+        setQuantity('0');
+        setDoubleQuantity('0.00');
+        setInputMode(false);
+        setButtonLoading(false);
+      }
+      finally {
+        setButtonLoading(false);
+      }
     },
     [fetchCartItems]
   );
@@ -340,71 +359,76 @@ const CartScreen = React.memo(({ route }: Props) => {
               </ScrollView>
             </View>
           </View>
-          <View className="w-full bg-gray-300 mb-2 h-[30%]">
-            <Text className="text-right text-base font-bold text-black px-3 mr-4 mt-4">
-              SUB TOTAL: ₱ {cart?.subTotal}
-            </Text>
+          {cart &&
+            (
+              <View className="w-full bg-gray-300 mb-2 h-[30%]">
+                <Text className="text-right text-base font-bold text-black px-3 mr-4 mt-4">
+                  SUB TOTAL: ₱ {cart?.subTotal}
+                </Text>
 
-            {cart?.deliveryFee ? (
-              <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
-                <TouchableOpacity onPress={removeFee} className="p-1">
-                  <Trash2 color="red" height={16} width={16} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={applyFee} className="p-1">
-                  <Text className="text-sm text-[#fe6500]">{`DELIVERY FEE: ₱ ${cart.deliveryFee}`}</Text>
+                {cart?.deliveryFee ? (
+                  <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
+                    <TouchableOpacity onPress={removeFee} className="p-1">
+                      <Trash2 color="red" height={16} width={16} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={applyFee} className="p-1">
+                      <Text className="text-sm text-[#fe6500]">{`DELIVERY FEE: ₱ ${cart.deliveryFee}`}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={applyFee} className="mt-2 p-2">
+                    <Text className="text-right text-sm text-[#fe6500] mr-4">
+                      Add Delivery Fee
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {cart?.discount ? (
+                  <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
+                    <TouchableOpacity onPress={removeDiscount} className="p-1">
+                      <Trash2 color="red" height={16} width={16} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={applyDiscount} className="p-1">
+                      <Text className="text-sm text-[#fe6500]">{`DISCOUNT: ₱ ${cart.discount}`}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={applyDiscount} className="mt-1 p-2">
+                    <Text className="text-right text-sm text-[#fe6500] mr-4">
+                      Add Discount
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  disabled={buttonLoading}
+                  onPress={handleDelete}
+                  className="p-3 mt-8"
+                >
+                  <Text className="text-right text-base text-red-500 font-bold mr-4">
+                    CLEAR CART
+                  </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <TouchableOpacity onPress={applyFee} className="mt-2 p-2">
-                <Text className="text-right text-sm text-[#fe6500] mr-4">
-                  Add Delivery Fee
-                </Text>
-              </TouchableOpacity>
             )}
-
-            {cart?.discount ? (
-              <View className="flex flex-row items-center justify-end px-3 mt-4 space-x-2 mr-3">
-                <TouchableOpacity onPress={removeDiscount} className="p-1">
-                  <Trash2 color="red" height={16} width={16} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={applyDiscount} className="p-1">
-                  <Text className="text-sm text-[#fe6500]">{`DISCOUNT: ₱ ${cart.discount}`}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={applyDiscount} className="mt-1 p-2">
-                <Text className="text-right text-sm text-[#fe6500] mr-4">
-                  Add Discount
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              disabled={buttonLoading}
-              onPress={handleDelete}
-              className="p-3 mt-8"
-            >
-              <Text className="text-right text-base text-red-500 font-bold mr-4">
-                CLEAR CART
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
-      < View className="items-center absolute bottom-0 left-0 right-0 pb-2 h-[8%]">
-        <TouchableOpacity
-          className={`w-[95%] rounded-xl p-3 items-center bg-[#fe6500] justify-center flex-row`}
-          onPress={handlePayment}
-          disabled={buttonLoading}
-        >
-          <View className="flex-1 items-center">
-            <Text className="font-bold text-center text-white text-lg">
-              TOTAL: ₱ {totalAmount}
-            </Text>
-          </View>
-          {buttonLoading && <ActivityIndicator color="white" size="small" />}
-        </TouchableOpacity>
-      </View>
+      {cart && (
+        < View className="items-center absolute bottom-0 left-0 right-0 pb-2 h-[8%]">
+          <TouchableOpacity
+            className={`w-[95%] rounded-xl p-3 items-center bg-[#fe6500] justify-center flex-row`}
+            onPress={handlePayment}
+            disabled={buttonLoading}
+          >
+            <View className="flex-1 items-center">
+              <Text className="font-bold text-center text-white text-lg">
+                TOTAL: ₱ {totalAmount}
+              </Text>
+            </View>
+            {buttonLoading && <ActivityIndicator color="white" size="small" />}
+          </TouchableOpacity>
+        </View>
+      )}
     </View >
   );
 });
