@@ -77,7 +77,30 @@ export const normalizeUri = async (uri: string) => {
     }
     const filePath = `${RNFS.TemporaryDirectoryPath}/${new Date().getTime()}.jpg`;
     await RNFS.copyFile(uri, filePath);
-    console.log(filePath);
     return `file://${filePath}`;
 };
 
+
+export const formatCurrency = (value: number) =>
+    `₱${value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+
+export function formatShortDateTimePH(dateString: string): string {
+    const date = new Date(dateString);
+
+    const formattedDate = date.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+
+    let hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+
+    hours = hours % 12 || 12; // Convert 0 to 12-hour format
+
+    const formattedTime = `${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
+
+    return `${formattedDate} ${formattedTime}`;
+}

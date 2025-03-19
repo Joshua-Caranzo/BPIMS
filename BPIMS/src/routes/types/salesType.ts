@@ -49,7 +49,8 @@ export type TransactionDto = {
     deliveryFee: number;
     discount: number;
     subTotal: number;
-    customerName: string
+    customerName: string;
+    cashier?: string
 }
 
 export type TransactionItemsDto = {
@@ -66,3 +67,13 @@ export type TransactionRequestDto = {
     transaction: TransactionDto;
     transactionItems: TransactionItemsDto[];
 }
+
+export type FilterType = "Week" | "Month" | "Year" | "All";
+
+export type SalesData = {
+    [key in FilterType]: {
+        label: string;
+        value: number;
+        dataPointText: string
+    }[];
+};

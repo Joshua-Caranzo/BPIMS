@@ -52,12 +52,17 @@ export default function StockInputScreen({ route }: Props) {
 
 
     async function getStockInputHistory() {
-        setLoading(true);
-        FastImage.clearMemoryCache();
-        FastImage.clearDiskCache();
-        const response = await getStockHistory(item.id);
-        setItemHistory(response.data);
-        setLoading(false)
+        try {
+            setLoading(true);
+            FastImage.clearMemoryCache();
+            FastImage.clearDiskCache();
+            const response = await getStockHistory(item.id);
+            setItemHistory(response.data);
+            setLoading(false)
+        }
+        finally {
+            setLoading(false)
+        }
     }
 
     useEffect(() => {
@@ -129,10 +134,17 @@ export default function StockInputScreen({ route }: Props) {
     }
 
     async function saveStockInput() {
-        if (stockInput) {
-            await createStockInput(stockInput)
-            newStockInput();
-            await getStockInputHistory();
+        try {
+            if (stockInput) {
+                setLoading(true)
+                await createStockInput(stockInput)
+                newStockInput();
+                await getStockInputHistory();
+                setLoading(false)
+            }
+        }
+        finally {
+            setLoading(false)
         }
     }
 
@@ -399,6 +411,9 @@ export default function StockInputScreen({ route }: Props) {
                             </View>
                         )}
 
+                        {loading && (
+                            <ActivityIndicator size={'small'} color={'#fe6500'}></ActivityIndicator>
+                        )}
                         {itemHistory.length > 0 && (
                             <View className="flex flex-column mt-2 h-[35vh] md:h-[45vh] lg:h-[55vh] pb-2">
                                 <Text className="text-gray-700 text-sm font-bold">Item History</Text>
@@ -416,7 +431,9 @@ export default function StockInputScreen({ route }: Props) {
                                             <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(history.deliveryDate.toString())}</Text>
                                         </TouchableOpacity>
                                     ))}
+
                                 </ScrollView>
+
                             </View>
                         )
                         }
@@ -432,7 +449,7 @@ export default function StockInputScreen({ route }: Props) {
                                     <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
                                 </View>
                                 {loading && (
-                                    <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                                    <ActivityIndicator size={'small'} color={`${!isValid ? '#fe6500' : 'white'}`}></ActivityIndicator>
                                 )}
                             </TouchableOpacity>
                         </View>

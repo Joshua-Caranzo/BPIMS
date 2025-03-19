@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     ScrollView,
     Text,
     TouchableOpacity,
     View,
-    Alert
+    Alert,
+    PermissionsAndroid,
+    ActivityIndicator
 } from 'react-native';
 import { X } from 'react-native-feather';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -13,12 +15,14 @@ import { ItemStackParamList } from '../../../navigation/navigation';
 import { generateReceipt } from '../../../services/salesRepo';
 import PDFIcon from '../../../../components/icons/PDFIcon';
 import PrinterIcon from '../../../../components/icons/PrinterIcon';
-import { formatTransactionDate } from '../../../utils/dateFormat';
+import { formatShortDateTimePH, formatTransactionDate } from '../../../utils/dateFormat';
+import ThermalPrinterModule from 'react-native-thermal-printer';
+import { base64Image } from '../../../../components/images/base64Image';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'SlipOrder'>;
 
 const SlipOrderScreen = React.memo(({ route }: Props) => {
-    const { transaction, transactionItems } = route.params;
+    const { transaction, transactionItems, user } = route.params;
     const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
     const subTotal = useMemo(() => Number(transaction.subTotal).toFixed(2), [transaction.subTotal]);
     const deliveryFee = useMemo(() => Number(transaction.deliveryFee).toFixed(2), [transaction.deliveryFee]);
@@ -26,6 +30,7 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
     const totalAmount = useMemo(() => Number(transaction.totalAmount).toFixed(2), [transaction.totalAmount]);
     const amountReceived = useMemo(() => Number(transaction.amountReceived).toFixed(2), [transaction.amountReceived]);
     const change = useMemo(() => (Number(transaction.amountReceived) - Number(transaction.totalAmount)).toFixed(2), [transaction]);
+    const [printLoadig, setPrintLoading] = useState<boolean>(false);
 
     const transactionDate = useMemo(() => {
         return new Date(transaction.transactionDate).toLocaleDateString(undefined, {
@@ -39,9 +44,81 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
         await generateReceipt(transaction.id, transaction);
     }, [transaction, transactionItems]);
 
-    const handlePrint = useCallback(() => {
-        Alert.alert('Printing', 'Print functionality is not implemented yet.');
-    }, []);
+    async function requestBluetoothPermission() {
+        try {
+            const granted = await PermissionsAndroid.requestMultiple([
+                PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            ]);
+            return granted;
+        } catch (err) {
+            console.warn(err);
+            return null;
+        }
+    }
+
+
+    async function printReceipt() {
+        try {
+            await requestBluetoothPermission();
+            setPrintLoading(true)
+
+            const itemsText = transactionItems
+                .map(
+                    (item) =>
+                        `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)} ${item.name}\n` +
+                        `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n` +
+                        '[L]\n'
+                )
+                .join('');
+            const text =
+                '[L]\n' +
+                `[C]<img>${base64Image}</img>\n` +
+                '[L]\n' +
+                "[C]<b>Balay Panday Hardware</b>\n" +
+                '[L]\n' +
+                `[L]<font size='normal'>Date: ${formatShortDateTimePH(transaction?.transactionDate.toString() || "")}</font>\n` +
+                `[L]<font size='normal'>Cashier: ${user.name}</font>\n` +
+                `[L]<font size='normal'>Mode of Payment: Cash</font>\n` +
+                `[L]<font size='normal'>Number of Items: ${transactionItems.length}</font>\n` +
+                `[L]<font size='normal'>Slip Number: ${transaction?.slipNo}</font>\n` +
+                `[L]<font size='normal'>Branch: ${transaction?.branch}</font>\n` +
+                '[C]--------------------------------\n' +
+                `[L]<font size='normal'>Store Pick-Up</font>\n` +
+                '[C]--------------------------------\n' +
+                '[L]\n' +
+                itemsText +
+                '[C]--------------------------------\n' +
+                `[L]<font size='normal'>Sub Total: [R] PHP ${(Number(subTotal).toFixed(2))}</font>\n` +
+                `[L]<font size='normal'>Total Amount: [R] PHP ${Number(transaction?.totalAmount).toFixed(2)}</font>\n` +
+                '[C]--------------------------------\n' +
+                `[L]<font size='normal'>Cash: [R] PHP ${Number(transaction?.amountReceived).toFixed(2)}</font>\n` +
+                `[L]<font size='normal'>Change: [R] PHP ${(Number(transaction?.amountReceived || 0) - Number(transaction?.totalAmount || 0)).toFixed(2)}</font>\n` +
+                '[C]--------------------------------\n' +
+                `[C]<font size='normal'>Balay Panday Official Receipt</font>\n` +
+                `[C]<font size='normal'>Thank you for your purchase!</font>\n` +
+                '[L]\n';
+            await ThermalPrinterModule.printBluetooth({
+                payload: text,
+                printerWidthMM: 48,
+                printerNbrCharactersPerLine: 32,
+                autoCut: true
+            });
+        } catch (error) {
+            Alert.alert("Printing Error", "Failed to print receipt.");
+        }
+        finally { setPrintLoading(false) }
+    }
+
+    if (printLoadig) {
+        return (
+            <View className='flex flex-1 justify-center items-center mt-10'>
+                <ActivityIndicator size="small" color="#fe6500" />
+                <Text className="text-center text-[#fe6500]">Printing Receipt...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={{ flex: 1 }}>
@@ -132,7 +209,7 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
                         <Text className="font-bold text-white">PDF</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        onPress={handlePrint}
+                        onPress={printReceipt}
                         className="w-[65%] rounded-r-xl p-3 items-center flex flex-row justify-center bg-gray-900"
                     >
                         <PrinterIcon size={28} />

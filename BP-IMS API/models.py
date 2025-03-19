@@ -10,6 +10,7 @@ class User(Model):
     departmentId = fields.IntField(null = False)
     branchId = fields.IntField(null = True)
     hasHeadAccess = fields.BooleanField(null=False, default=False)
+    isActive = fields.BooleanField(null=False, default=True)
 
     class Meta:
         table = "users"
@@ -70,7 +71,7 @@ class CartItems(Model):
     quantity = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
 
     class Meta:
-        table = "cartItems"
+        table = "cartitems"
 
 class Transaction(Model):
     id = fields.IntField(pk=True)
@@ -96,7 +97,7 @@ class TransactionItem(Model):
     amount = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
 
     class Meta:
-        table = "transactionItems"
+        table = "transactionitems"
 
 class Customer(Model):
     id = fields.IntField(pk=True)
@@ -131,7 +132,7 @@ class StockInput(Model):
     branchItemId = fields.IntField(null=False)
 
     class Meta:
-        table = "stockInputs"
+        table = "stockinputs"
 
 class WareHouseItem(Model):
     id = fields.IntField(null=False, pk=True)
@@ -139,16 +140,26 @@ class WareHouseItem(Model):
     quantity = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
 
     class Meta:
-        table = "WareHouseItems"
+        table = "warehouseitems"
 
 class WHStockInput(Model):
     id = fields.IntField(null=False, pk=True)
     qty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
     moq = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
     deliveryDate = fields.DateField(null=False)
-    deliveredBy = fields.CharField(max_length=255, null=False)
+    deliveredBy = fields.IntField(null=True)
     expectedQty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
     actualQty = fields.DecimalField(max_digits=10, decimal_places=2, null=False)
     itemId = fields.IntField(null=False)
     class Meta:
-        table = "whStockInputs"
+        table = "whstockinputs"
+
+class Supplier(Model):
+    id = fields.IntField(null=False, pk=True)
+    name =  fields.CharField(max_length=255, null=False)
+    contactNumber1 = fields.CharField(max_length=50, null=True)
+    contactNumber2 = fields.CharField(max_length=50, null=True)
+    address = fields.CharField(max_length=1000, null=True)
+
+    class Meta:
+        table = "suppliers"

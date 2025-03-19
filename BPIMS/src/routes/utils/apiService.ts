@@ -5,7 +5,7 @@ import { VITE_MAIN_API } from '@env';
 import { Alert } from 'react-native';
 
 const MAIN_API_URL = VITE_MAIN_API;
-
+//const MAIN_API_URL = 'http://192.168.1.4:5000';
 const baseAxiosInstance = axios.create({
   baseURL: MAIN_API_URL,
   headers: {
@@ -33,7 +33,6 @@ baseAxiosInstance.interceptors.request.use(
 baseAxiosInstance.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    console.log(error)
     if (!error.response) {
       Alert.alert(
         'Network Error',

@@ -6,22 +6,22 @@ import {
     View,
     ActivityIndicator,
     Alert,
+    PermissionsAndroid,
 } from 'react-native';
 import { X } from 'react-native-feather';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { SalesReportParamList } from '../../../navigation/navigation';
+import { SalesReportHQParamList, SalesReportParamList } from '../../../navigation/navigation';
 import { generateReceipt } from '../../../services/salesRepo';
 import PDFIcon from '../../../../components/icons/PDFIcon';
 import PrinterIcon from '../../../../components/icons/PrinterIcon';
 import { formatShortDateTimePH, formatTransactionDate } from '../../../utils/dateFormat';
 import { TransactionDto, TransactionItemsDto } from '../../../types/customerType';
 import { getTransactionHistory } from '../../../services/customerRepo';
-import ThermalPrinterModule from 'react-native-thermal-printer';
-import { PermissionsAndroid } from 'react-native';
 import { base64Image } from '../../../../components/images/base64Image';
+import ThermalPrinterModule from 'react-native-thermal-printer';
 
-type Props = NativeStackScreenProps<SalesReportParamList, 'TransactionHistory'>;
+type Props = NativeStackScreenProps<SalesReportHQParamList, 'TransactionHistory'>;
 
 const TransactionHistoryScreen = React.memo(({ route }: Props) => {
     const { transactionId } = route.params;

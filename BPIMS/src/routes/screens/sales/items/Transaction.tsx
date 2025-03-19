@@ -41,25 +41,30 @@ const TransactionScreen = React.memo(({ route }: Props) => {
     }, [payment, total]);
 
     const applyPayment = useCallback(async () => {
-        if (cart && payment) {
-            setLoading(true);
-            const result = await processPayment(Number(payment));
-            if (result.isSuccess) {
-                setDone(true);
-                setTransaction(result.data.transaction);
-                setTransactionItems(result.data.transactionItems);
-            } else {
-                Alert.alert('An Error Occurred', result.message);
+        try {
+            if (cart && payment) {
+                setLoading(true);
+                const result = await processPayment(Number(payment));
+                if (result.isSuccess) {
+                    setDone(true);
+                    setTransaction(result.data.transaction);
+                    setTransactionItems(result.data.transactionItems);
+                } else {
+                    Alert.alert('An Error Occurred', result.message);
+                }
+                setLoading(false);
             }
+        }
+        finally {
             setLoading(false);
         }
     }, [cart, payment]);
 
     const clickReceipt = useCallback(() => {
         if (transaction) {
-            navigation.navigate('SlipOrder', { transaction, transactionItems: items });
+            navigation.navigate('SlipOrder', { transaction, transactionItems: items, user });
         }
-    }, [transaction, items, navigation]);
+    }, [transaction, items, navigation, user]);
 
     const handleKeyPress = useCallback((key: string) => {
         let current = payment.replace('.', '');

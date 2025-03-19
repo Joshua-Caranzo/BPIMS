@@ -46,3 +46,14 @@ export type DailyTransactionResponse = {
   totalAmount: number;
   totalProfit: number;
 };
+
+export type AnalysisReportResponse = {
+  percentChange: number;
+  highestSalesDate: string | null;
+  highestSalesAmount: number | null;
+  highestSalesMonthDate: string | null;
+  highestSalesMonthAmount: number | null;
+  smallOrderPercentage: string | null;
+  highOrderPercentage: string | null;
+  peakPeriod: string | null;
+};

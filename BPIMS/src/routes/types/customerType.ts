@@ -39,7 +39,8 @@ export type TransactionDto = {
     deliveryFee: number;
     discount: number;
     subTotal: number;
-    customerName: string
+    customerName: string;
+    cashier?: string;
 }
 
 export type TransactionItemsDto = {

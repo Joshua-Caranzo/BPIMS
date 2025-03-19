@@ -64,9 +64,8 @@ const WHSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
     }, [navigation]);
 
     const menuItems = useMemo(() => [
-        { IconComponent: <StoreIcon size={isTablet ? 24 : 20} color="white" />, text: "Stores Request", page: "SalesReportStack" },
-        { IconComponent: <BoxIcon size={isTablet ? 24 : 20} />, text: "WH Stocks", page: "WHStack" },
-        { IconComponent: <StockIcon size={isTablet ? 24 : 20} />, text: "Supplier Input", page: "UserStack" },
+        { IconComponent: <BoxIcon size={isTablet ? 24 : 20} />, text: "WH Stocks", page: "WHStock" },
+        { IconComponent: <StockIcon size={isTablet ? 24 : 20} />, text: "Supplier Input", page: "SupplierStack" },
     ], [isTablet]);
 
     return (

@@ -25,3 +25,8 @@ export async function getDepartments() {
 export async function getBranches() {
     return await getFromBaseApi<ObjectDto[]>('getBranches');
 }
+
+
+export async function setUserInactive(id: number) {
+    return await postToBaseApi('setUserInactive', { id });
+}

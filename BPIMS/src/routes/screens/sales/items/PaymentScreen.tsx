@@ -20,13 +20,18 @@ const PaymentScreen = React.memo(({ route }: Props) => {
     const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
 
     const getCartItems = useCallback(async () => {
-        setLoading(true);
-        const result = await getCart();
-        const c = result.data.cart;
-        setCart(c);
-        const total = Number(c.subTotal) - Number(c.discount) + Number(c.deliveryFee);
-        setTotal(total);
-        setLoading(false);
+        try {
+            setLoading(true);
+            const result = await getCart();
+            const c = result.data.cart;
+            setCart(c);
+            const total = Number(c.subTotal) - Number(c.discount) + Number(c.deliveryFee);
+            setTotal(total);
+            setLoading(false);
+        }
+        finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {

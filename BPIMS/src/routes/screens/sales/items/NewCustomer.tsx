@@ -146,31 +146,35 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
   }, []);
 
   const handleSave = useCallback(async () => {
-    Keyboard.dismiss();
-    setLoading(true);
-    if (customer && user) {
-      const formData = new FormData();
-      formData.append('id', String(customer.id));
-      formData.append('name', customer.name);
-      if (customer.contactNumber1 != null) formData.append('contactNumber1', customer.contactNumber1);
-      if (customer.contactNumber2 != null) formData.append('contactNumber2', customer.contactNumber2);
-      formData.append('branchId', customer.branchId);
-      if (fileUrl) {
-        const today = new Date();
-        const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
-          .toString()
-          .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
-        const firstName = customer.name?.split(' ')[0] || 'Unknown';
-        formData.append('file', {
-          uri: fileUrl,
-          name: `${firstName}${formattedDate}.jpg`,
-          type: 'image/jpeg',
-        } as any);
+    try {
+      Keyboard.dismiss();
+      setLoading(true);
+      if (customer && user) {
+        const formData = new FormData();
+        formData.append('id', String(customer.id));
+        formData.append('name', customer.name);
+        if (customer.contactNumber1 != null) formData.append('contactNumber1', customer.contactNumber1);
+        if (customer.contactNumber2 != null) formData.append('contactNumber2', customer.contactNumber2);
+        formData.append('branchId', customer.branchId);
+        if (fileUrl) {
+          const today = new Date();
+          const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
+            .toString()
+            .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
+          const firstName = customer.name?.split(' ')[0] || 'Unknown';
+          formData.append('file', {
+            uri: fileUrl,
+            name: `${firstName}${formattedDate}.jpg`,
+            type: 'image/jpeg',
+          } as any);
+        }
+        const result = await saveCustomer(formData);
+        await updateCustomer(result.data);
+        navigation.navigate('Payment', { user });
       }
-      const result = await saveCustomer(formData);
-      await updateCustomer(result.data);
+    }
+    finally {
       setLoading(false);
-      navigation.navigate('Payment', { user });
     }
   }, [customer, user, fileUrl, navigation]);
 

@@ -63,14 +63,19 @@ const ItemScreen = () => {
 
     useEffect(() => {
         const getCategoryList = async () => {
-            setLoadingCategory(true);
-            const response = await getCategories();
-            if (response.isSuccess) {
-                setCategories(response.data);
-            } else {
-                Alert.alert('An error occurred', response.message);
+            try {
+                setLoadingCategory(true);
+                const response = await getCategories();
+                if (response.isSuccess) {
+                    setCategories(response.data);
+                } else {
+                    Alert.alert('An error occurred', response.message);
+                }
+                setLoadingCategory(false);
             }
-            setLoadingCategory(false);
+            finally {
+                setLoadingCategory(false);
+            }
         };
 
         getCategoryList();
@@ -84,42 +89,48 @@ const ItemScreen = () => {
     );
 
     const getItems = useCallback(async (categoryId: number, page: number, search: string) => {
-        if (activeCategory !== lastCategory) {
-            setProducts([]);
-        }
-        if (!loadingMore)
-            setLoading(true);
-        const userResponse = await getUserDetails();
-        setUser(userResponse)
-        const response = await getProducts(categoryId, page, search.trim(), Number(userResponse?.branchId));
-        if (response.isSuccess) {
-            FastImage.clearMemoryCache();
-            FastImage.clearDiskCache();
-            let newProducts = response.data;
-            const cartResponse = await getCart();
-            const cartItems = cartResponse.data.cartItems;
-            setCartItems(cartItems)
-            newProducts = newProducts.map(product => {
-                const cartItem = cartItems.find((item) => item.itemId === product.id);
-                if (cartItem) {
-                    return {
-                        ...product,
-                        quantity: product.quantity - cartItem.quantity,
-                    };
-                }
-                return product;
-            });
-            setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
-            if (newProducts.length === 0 || products.length + newProducts.length >= (response.totalCount || 0)) {
-                setHasMoreData(false);
-            } else {
-                setHasMoreData(true);
+        try {
+            if (activeCategory !== lastCategory) {
+                setProducts([]);
             }
-        } else {
-            setProducts([])
+            if (!loadingMore)
+                setLoading(true);
+            const userResponse = await getUserDetails();
+            setUser(userResponse)
+            const response = await getProducts(categoryId, page, search.trim(), Number(userResponse?.branchId));
+            if (response.isSuccess) {
+                FastImage.clearMemoryCache();
+                FastImage.clearDiskCache();
+                let newProducts = response.data;
+                const cartResponse = await getCart();
+                const cartItems = cartResponse.data.cartItems;
+                setCartItems(cartItems)
+                newProducts = newProducts.map(product => {
+                    const cartItem = cartItems.find((item) => item.itemId === product.id);
+                    if (cartItem) {
+                        return {
+                            ...product,
+                            quantity: product.quantity - cartItem.quantity,
+                        };
+                    }
+                    return product;
+                });
+                setProducts(prevProducts => page === 1 ? newProducts : [...prevProducts, ...newProducts]);
+                if (newProducts.length === 0 || products.length + newProducts.length >= (response.totalCount || 0)) {
+                    setHasMoreData(false);
+                } else {
+                    setHasMoreData(true);
+                }
+            } else {
+                setProducts([])
+            }
+            setLoading(false);
+            setLoadingMore(false);
         }
-        setLoading(false);
-        setLoadingMore(false);
+        finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
     }, [activeCategory, lastCategory, loadingMore, products.length]);
 
     const loadMoreCategories = useCallback(() => {
@@ -185,50 +196,55 @@ const ItemScreen = () => {
     }, [totalCartItems, cartScale]);
 
     const addToCartFaction = useCallback(async () => {
-        setButtonLoading(true);
+        try {
+            setButtonLoading(true);
 
-        if (selectedItem) {
-            const prevTotalCartItems = totalCartItems;
-            const prevTotalPrice = totalPrice;
-            const prevProducts = products;
+            if (selectedItem) {
+                const prevTotalCartItems = totalCartItems;
+                const prevTotalPrice = totalPrice;
+                const prevProducts = products;
 
-            const updatedItem = {
-                ...selectedItem,
-                quantity: selectedItem.quantity > 0 ? selectedItem.quantity - Number(quantity) : 0,
-            };
+                const updatedItem = {
+                    ...selectedItem,
+                    quantity: selectedItem.quantity > 0 ? selectedItem.quantity - Number(quantity) : 0,
+                };
 
-            setProducts(prev =>
-                prev.map(i =>
-                    i.id === updatedItem.id ? { ...i, quantity: updatedItem.quantity } : i
-                )
-            );
+                setProducts(prev =>
+                    prev.map(i =>
+                        i.id === updatedItem.id ? { ...i, quantity: updatedItem.quantity } : i
+                    )
+                );
 
-            const toAdd = updatedItem.price * Number(quantity);
-            if (!cartItems.some(item => item.itemId === updatedItem.id)) {
-                setTotalCartItems(prev => prev + 1);
-            }
-
-            setTotalPrice((prev) => prev + parseFloat(toAdd.toString()));
-
-            const debouncedAddToCart = debounce(async () => {
-                try {
-                    await addItemToCart(selectedItem.id, Number(quantity));
-                    setSelectedItem(undefined);
-                    setQuantity("0.00");
-                    setInputMode(false);
-                    await getUserAndCart();
-                } catch (error) {
-                    setProducts(prevProducts);
-                    setTotalCartItems(prevTotalCartItems);
-                    setTotalPrice(prevTotalPrice);
-                    Alert.alert('Error', 'Failed to add item to cart. Please try again.');
-                } finally {
-                    setButtonLoading(false);
+                const toAdd = updatedItem.price * Number(quantity);
+                if (!cartItems.some(item => item.itemId === updatedItem.id)) {
+                    setTotalCartItems(prev => prev + 1);
                 }
-            },);
 
-            debouncedAddToCart();
-        } else {
+                setTotalPrice((prev) => prev + parseFloat(toAdd.toString()));
+
+                const debouncedAddToCart = debounce(async () => {
+                    try {
+                        await addItemToCart(selectedItem.id, Number(quantity));
+                        setSelectedItem(undefined);
+                        setQuantity("0.00");
+                        setInputMode(false);
+                        await getUserAndCart();
+                    } catch (error) {
+                        setProducts(prevProducts);
+                        setTotalCartItems(prevTotalCartItems);
+                        setTotalPrice(prevTotalPrice);
+                        Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+                    } finally {
+                        setButtonLoading(false);
+                    }
+                },);
+
+                debouncedAddToCart();
+            } else {
+                setButtonLoading(false);
+            }
+        }
+        finally {
             setButtonLoading(false);
         }
     }, [selectedItem, quantity, totalCartItems, totalPrice, products, getUserAndCart]);
@@ -247,9 +263,14 @@ const ItemScreen = () => {
     }, []);
 
     const handleCartClick = useCallback(() => {
-        setButtonLoading(true)
-        if (user) {
-            navigation.navigate('Cart', { user: user });
+        try {
+            setButtonLoading(true)
+            if (user) {
+                navigation.navigate('Cart', { user: user });
+                setButtonLoading(false)
+            }
+        }
+        finally {
             setButtonLoading(false)
         }
     }, [navigation, user]);

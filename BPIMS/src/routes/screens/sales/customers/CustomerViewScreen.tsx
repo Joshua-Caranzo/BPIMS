@@ -10,7 +10,7 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { CustomerDto, OrderHistory } from '../../../types/customerType';
-import { deleteCustomer, getCustomer, getCustomerImage, saveCustomer } from '../../../services/customerRepo';
+import { deleteCustomer, getCustomer, saveCustomer } from '../../../services/customerRepo';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CustomerStackParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
@@ -66,32 +66,37 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     }
 
     const fetchCustomer = useCallback(async () => {
-        setLoading(true);
-        FastImage.clearMemoryCache();
-        FastImage.clearDiskCache();
-        if (customerId != 0 && customerId != null) {
-            const response = await getCustomer(customerId);
-            if (response) {
-                setCustomer(response.data.customer);
-                setName(response.data.customer.name)
-                setOrderHistory(response.data.orderHistory ?? []);
-                setFileUrl(response.data.customer.fileName)
+        try {
+            setLoading(true);
+            FastImage.clearMemoryCache();
+            FastImage.clearDiskCache();
+            if (customerId != 0 && customerId != null) {
+                const response = await getCustomer(customerId);
+                if (response) {
+                    setCustomer(response.data.customer);
+                    setName(response.data.customer.name)
+                    setOrderHistory(response.data.orderHistory ?? []);
+                    setFileUrl(response.data.customer.fileName)
+                }
+            } else if (customerId == 0 && user) {
+                const newCustomer: CustomerDto = {
+                    id: 0,
+                    name: '',
+                    contactNumber1: null,
+                    contactNumber2: null,
+                    totalOrderAmount: 0,
+                    branchId: user.branchId,
+                    branch: user.branchName,
+                    fileUrl: null,
+                    fileName: null,
+                };
+                setCustomer(newCustomer);
             }
-        } else if (customerId == 0 && user) {
-            const newCustomer: CustomerDto = {
-                id: 0,
-                name: '',
-                contactNumber1: null,
-                contactNumber2: null,
-                totalOrderAmount: 0,
-                branchId: user.branchId,
-                branch: user.branchName,
-                fileUrl: null,
-                fileName: null,
-            };
-            setCustomer(newCustomer);
+            setLoading(false);
         }
-        setLoading(false);
+        finally {
+            setLoading(false);
+        }
     }, [customerId]);
 
     useEffect(() => {
@@ -202,34 +207,36 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     }, []);
 
     const handleSave = useCallback(async () => {
-        Keyboard.dismiss();
-        setLoaderMessage('Saving Customer...');
-        if (customer && user) {
-            setLoading(true);
-            customer.branchId = user.branchId;
+        try {
+            Keyboard.dismiss();
+            setLoaderMessage('Saving Customer...');
+            if (customer && user) {
+                setLoading(true);
+                customer.branchId = user.branchId;
 
-            const formData = new FormData();
-            formData.append('id', String(customer.id));
-            formData.append('name', customer.name);
-            if (customer.contactNumber1 != null) formData.append('contactNumber1', customer.contactNumber1);
-            if (customer.contactNumber2 != null) formData.append('contactNumber2', customer.contactNumber2);
-            formData.append('branchId', customer.branchId);
-            if (fileUrl) {
-                const today = new Date();
-                const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
-                    .toString()
-                    .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
-                const firstName = customer.name?.split(' ')[0] || 'Unknown';
-                formData.append('file', {
-                    uri: fileUrl,
-                    name: `${firstName}${formattedDate}.jpg`,
-                    type: 'image/jpeg',
-                } as any);
+                const formData = new FormData();
+                formData.append('id', String(customer.id));
+                formData.append('name', customer.name);
+                if (customer.contactNumber1 != null) formData.append('contactNumber1', customer.contactNumber1);
+                if (customer.contactNumber2 != null) formData.append('contactNumber2', customer.contactNumber2);
+                formData.append('branchId', customer.branchId);
+                if (fileUrl) {
+                    const today = new Date();
+                    const formattedDate = `${today.getDate().toString().padStart(2, '0')}${(today.getMonth() + 1)
+                        .toString()
+                        .padStart(2, '0')}${today.getFullYear().toString().slice(-2)}`;
+                    const firstName = customer.name?.split(' ')[0] || 'Unknown';
+                    formData.append('file', {
+                        uri: fileUrl,
+                        name: `${firstName}${formattedDate}.jpg`,
+                        type: 'image/jpeg',
+                    } as any);
+                }
+                const result = await saveCustomer(formData);
+                navigation.push('Customer')
             }
-            const result = await saveCustomer(formData);
+        } finally {
             setLoading(false);
-            setCustomerId(result.data)
-            await fetchCustomer();
         }
     }, [customer, user, fileUrl, fetchCustomer]);
 
@@ -244,10 +251,15 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         text: 'Yes',
                         onPress: async () => {
                             setLoaderMessage('Deleting Customer...');
-                            setLoading(true);
-                            const response = await deleteCustomer(id);
-                            if (response.isSuccess) {
-                                navigation.push('Customer');
+                            try {
+                                setLoading(true);
+                                const response = await deleteCustomer(id);
+                                if (response.isSuccess) {
+                                    navigation.push('Customer');
+                                }
+                            }
+                            finally {
+                                setLoading(false);
                             }
                         }
                     }
@@ -375,7 +387,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                             </View>
                         )}
                         {orderHistory.length > 0 && (
-                            <View className="flex flex-column mt-2 h-[37vh] md:h-[50vh] lg:h-[60vh] pb-2">
+                            <View className="flex flex-column mt-2 h-[35vh] md:h-[50vh] lg:h-[60vh] pb-2">
                                 <Text className="text-gray-700 text-sm font-bold">Order History</Text>
                                 <ScrollView className="w-full mb-8 mt-1">
                                     <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
@@ -402,7 +414,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 <View className="items-center absolute bottom-0 left-0 right-0 pb-2">
                     <TouchableOpacity
                         onPress={handleSave}
-                        className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
+                        className={`w-[95%] rounded-xl p-3 flex flex-row items-center justify-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                         disabled={!isValid}
                     >
                         <View className="flex-1 items-center">
