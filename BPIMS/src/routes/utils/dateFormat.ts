@@ -104,3 +104,13 @@ export function formatShortDateTimePH(dateString: string): string {
 
     return `${formattedDate} ${formattedTime}`;
 }
+
+export const truncateName = (name: string) => {
+    const maxLength = 15;
+    return name && name.length > maxLength ? name.slice(0, maxLength) + "..." : name;
+};
+
+export const truncateShortName = (name: string) => {
+    const maxLength = 6;
+    return name && name.length > maxLength ? name.slice(0, maxLength) + "..." : name;
+};

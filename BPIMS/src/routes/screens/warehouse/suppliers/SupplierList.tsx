@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SupplierParamList } from '../../../navigation/navigation';
 import { getSupplierList } from '../../../services/whRepo';
 import WHSidebar from '../../../../components/WHSidebar';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const SupplierListScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -77,13 +78,8 @@ const SupplierListScreen = React.memo(() => {
                 <Text className="text-black text-lg font-bold">SUPPLIER</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{
-                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                            }}
-                        >
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -122,7 +118,7 @@ const SupplierListScreen = React.memo(() => {
                                 onPress={() => handleViewSupplier(s.id)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
-                                <Text className="text-black text-base">{s.name}</Text>
+                                <Text className="text-black text-base">{truncateName(s.name)}</Text>
                                 <View className="px-2">
                                     <ChevronRight color="#fe6500" height={20} width={20} />
                                 </View>

@@ -14,6 +14,7 @@ import { TransactionDto, TransactionItemsDto } from '../../../types/salesType';
 import { processPayment } from '../../../services/salesRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import { ItemStackParamList } from '../../../navigation/navigation';
+import { truncateShortName } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'Transaction'>;
 
@@ -103,13 +104,8 @@ const TransactionScreen = React.memo(({ route }: Props) => {
                         <Text className="text-black text-lg font-bold">PAYMENT</Text>
                         <View className="items-center mr-2">
                             <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                                <Text
-                                    className="text-white"
-                                    style={{
-                                        fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                                    }}
-                                >
-                                    {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                                <Text className="text-white" style={{ fontSize: 12 }}>
+                                    {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                                 </Text>
                             </View>
                         </View>

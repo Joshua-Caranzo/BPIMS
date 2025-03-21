@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Eye, EyeOff, Trash2, XCircle } from 'react-native-feather';
 import { addUser, editUser, getBranches, getDepartments, getUser, setUserInactive } from '../../../services/userRepo';
 import { ObjectDto, UserListDto } from '../../../types/userType';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<UsersHQParamList, 'UserView'>;
 
@@ -243,7 +244,7 @@ const UserViewScreen = React.memo(({ route }: Props) => {
                     <ChevronLeft height={28} width={28} color="#fe6500" />
                 </TouchableOpacity>
                 <View className='pr-4 flex-1 items-center'>
-                    <Text className="font-bold text-lg">{user?.id !== 0 ? name : 'New User'}</Text>
+                    <Text className="font-bold text-lg">{user?.id !== 0 ? truncateName(name) : 'New User'}</Text>
                 </View>
                 {user && user.id != 0 && (
                     <View>

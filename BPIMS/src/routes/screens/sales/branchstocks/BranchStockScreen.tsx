@@ -17,6 +17,7 @@ import { BranchStockDto } from '../../../types/stockType';
 import { getBranchStocks } from '../../../services/stockRepo';
 import { getSocketData } from '../../../utils/apiService';
 import { BranchStockParamList } from '../../../navigation/navigation';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const BranchStockScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -131,7 +132,7 @@ const BranchStockScreen = React.memo(() => {
             <View className="bg-gray pb-2 px-4 border-b border-gray-300 flex flex-row justify-between">
                 <View className="pr-4 flex-1 w-[70%]">
                     <Text className="text-black text-sm mb-1" numberOfLines={1} ellipsizeMode="tail">
-                        {item.name}
+                        {truncateName(item.name)}
                     </Text>
                 </View>
                 <View className="flex flex-row w-[20%] justify-end">
@@ -167,13 +168,8 @@ const BranchStockScreen = React.memo(() => {
                 <Text className="text-black text-lg font-bold">BRANCH STOCKS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{
-                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                            }}
-                        >
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>

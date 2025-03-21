@@ -11,9 +11,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ItemStackParamList } from '../../../navigation/navigation';
 import { OptimizedFlatList } from 'react-native-optimized-flatlist';
 import NumericKeypad from '../../../../components/NumericKeypad';
-import { debounce } from 'lodash';
+import { debounce, truncate } from 'lodash';
 import FastImage from 'react-native-fast-image';
 import { Animated, Easing } from 'react-native';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const ItemScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -346,8 +347,8 @@ const ItemScreen = () => {
                         </View>
 
                         <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
-                            <Text className="text-xs font-bold" numberOfLines={2} ellipsizeMode="tail">
-                                {item.name.toUpperCase()}
+                            <Text className="text-xs font-bold">
+                                {truncateName(item.name.toUpperCase())}
                             </Text>
                             <Text className="text-xs font-bold mb-1" numberOfLines={1}>
                                 ₱ {item.price}
@@ -379,8 +380,8 @@ const ItemScreen = () => {
                         </View>
 
                         <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
-                            <Text className="text-xs font-bold" numberOfLines={2} ellipsizeMode="tail">
-                                {item.name.toUpperCase()}
+                            <Text className="text-xs font-bold">
+                                {truncateName(item.name.toUpperCase())}
                             </Text>
                             <Text className="text-xs font-bold mb-1" numberOfLines={1}>
                                 ₱ {item.price}
@@ -496,19 +497,8 @@ const ItemScreen = () => {
                     <View className=" items-center"
                     >
                         <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                            <Text
-                                className="text-white"
-                                style={{
-                                    fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12,
-                                }}
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                            >
-                                {user?.name
-                                    ? user.name.split(" ")[0].length > 15
-                                        ? `${user.name.split(" ")[0].substring(0, 10)}...`
-                                        : user.name.split(" ")[0].toUpperCase()
-                                    : ""}
+                            <Text className="text-white" style={{ fontSize: 12 }}>
+                                {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                             </Text>
                         </View>
 

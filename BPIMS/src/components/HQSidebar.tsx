@@ -11,6 +11,7 @@ import { getSocketData } from "../routes/utils/apiService";
 import { debounce } from "lodash";
 import ItemsData from "./icons/ItemsData";
 import BoxIcon from "./icons/Box";
+import { truncateName, truncateShortName } from "../routes/utils/dateFormat";
 
 type SidebarProps = {
     isVisible: boolean;
@@ -88,7 +89,7 @@ const HQSidebar = React.memo(({ isVisible, toggleSidebar, userDetails }: Sidebar
                             HEADQUARTERS
                         </Text>
                         <Text className={`text-white ${isTablet ? "text-lg" : "text-[12px]"}`}>
-                            {userDetails?.name.toUpperCase()}
+                            {truncateName(userDetails?.name.toUpperCase() || "")}
                         </Text>
                         <View className="absolute right-0 ml-2">
                             <TouchableOpacity onPress={toggleSidebar}>

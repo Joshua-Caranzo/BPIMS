@@ -16,7 +16,7 @@ import { CustomerHQStackParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera, CameraOptions, ImageLibraryOptions, MediaType } from 'react-native-image-picker';
 import { Camera, ChevronLeft, Trash2 } from 'react-native-feather';
-import { formatTransactionDate } from '../../../utils/dateFormat';
+import { formatTransactionDate, truncateName } from '../../../utils/dateFormat';
 import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
 
@@ -290,7 +290,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                         <ChevronLeft height={28} width={28} color="#fe6500" />
                     </TouchableOpacity>
                     {customer && customer.id != 0 ? (
-                        <Text className="font-bold text-base text-gray-700 ml-3">{customer.name}</Text>
+                        <Text className="font-bold text-base text-gray-700 ml-3">{truncateName(customer.name)}</Text>
                     ) : (
                         <Text className="font-bold text-base text-gray-700 ml-3">New Customer</Text>
                     )}
@@ -313,7 +313,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                     <>
                         <View className="w-full flex-row justify-between">
                             <View className="flex-1">
-                                <Text className="text-gray-700 text-sm">Branch</Text>
+                                <Text className="text-gray-700 text-sm font-bold">Branch</Text>
                                 <TextInput
                                     value={customer.branch?.toUpperCase() || 'No Branch'}
                                     editable={false}

@@ -16,6 +16,7 @@ import { ChevronRight, Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CustomerStackParamList } from '../../../navigation/navigation';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const CustomerScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -82,13 +83,8 @@ const CustomerScreen = React.memo(() => {
                 <Text className="text-black text-lg font-bold">CUSTOMERS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{
-                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                            }}
-                        >
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -127,7 +123,7 @@ const CustomerScreen = React.memo(() => {
                                 onPress={() => handleViewCustomer(customer.id, customer.name)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
-                                <Text className="text-black text-base">{customer.name}</Text>
+                                <Text className="text-black text-base">{truncateName(customer.name)}</Text>
                                 <View className="px-2">
                                     <ChevronRight color="#fe6500" height={20} width={20} />
                                 </View>

@@ -12,7 +12,7 @@ import { ChevronLeft, Search } from 'react-native-feather';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SalesReportHQParamList } from '../../../navigation/navigation';
-import { capitalizeFirstLetter, formatTransactionDate } from '../../../utils/dateFormat';
+import { capitalizeFirstLetter, formatTransactionDate, truncateShortName } from '../../../utils/dateFormat';
 import { DailyTransactionDto } from '../../../types/reportType';
 import { getAllTransactionHistoryHQ } from '../../../services/salesRepo';
 
@@ -125,8 +125,8 @@ const TransactionListScreen = React.memo(({ route }: Props) => {
                 </View>
                 <View className="items-center">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12 }}>
-                            {user?.name ? user.name.split(" ")[0].toUpperCase() : ""}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>

@@ -14,7 +14,7 @@ import { CustomerStackParamList } from '../../../navigation/navigation';
 import { generateReceipt } from '../../../services/salesRepo';
 import PDFIcon from '../../../../components/icons/PDFIcon';
 import PrinterIcon from '../../../../components/icons/PrinterIcon';
-import { formatTransactionDate } from '../../../utils/dateFormat';
+import { formatTransactionDate, truncateName } from '../../../utils/dateFormat';
 import { TransactionDto, TransactionItemsDto } from '../../../types/customerType';
 import { getTransactionHistory } from '../../../services/customerRepo';
 
@@ -132,7 +132,7 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                                 <View key={index} className="flex flex-row py-2">
                                     <Text className="w-1/6 text-[12px] text-gray-800 text-left">{item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}</Text>
                                     <View className="w-1/2 text-gray-800 text-center">
-                                        <Text className="text-[12px]">{item.name}</Text>
+                                        <Text className="text-[12px]">{truncateName(item.name)}</Text>
                                         <Text className="text-[12px] text-gray-600">₱ {item.price}</Text>
                                     </View>
                                     <Text className="w-2/6 text-xs text-gray-800 text-right">

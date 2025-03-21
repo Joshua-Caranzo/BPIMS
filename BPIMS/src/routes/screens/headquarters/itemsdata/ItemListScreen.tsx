@@ -12,6 +12,7 @@ import { getCategoriesHQ, getProductsHQ } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
 import HQSidebar from '../../../../components/HQSidebar';
 import FastImage from 'react-native-fast-image';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const ItemListScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -147,7 +148,7 @@ const ItemListScreen = () => {
                         <Text className="text-white text-xs text-center">No Image</Text>
                     )}
                 </View>
-                <Text className="w-[60%] text-xs font-bold text-start ml-1 mr-1" numberOfLines={1} ellipsizeMode="tail">{item.name.toUpperCase()}</Text>
+                <Text className="w-[60%] text-xs font-bold text-start ml-1 mr-1">{truncateName(item.name.toUpperCase())}</Text>
                 <Text className=" w-[20%] text-xs font-bold mb-1 text-right" numberOfLines={1}>₱ {item.price}</Text>
             </View>
         </TouchableOpacity>
@@ -162,20 +163,15 @@ const ItemListScreen = () => {
                 <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
 
-            <View className="top-3 flex flex-row justify-between px-2 mb-5">
+            <View className="top-3 flex flex-row justify-between px-2 mb-3">
                 <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
                     <Menu width={20} height={20} color="#fe6500" />
                 </TouchableOpacity>
                 <Text className="text-black text-lg font-bold">ITEMS DATA</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{
-                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                            }}
-                        >
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
