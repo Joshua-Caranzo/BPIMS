@@ -24,7 +24,7 @@ import {
 } from '../../../types/reportType';
 import HQSidebar from '../../../../components/HQSidebar';
 import { FilterType, SalesData } from '../../../types/salesType';
-import { formatTransactionDateOnly } from '../../../utils/dateFormat';
+import { formatTransactionDateOnly, truncateShortName } from '../../../utils/dateFormat';
 import { getAllTransactionHistoryHQ } from '../../../services/salesRepo';
 import { getBranches } from '../../../services/userRepo';
 import { useNavigation } from '@react-navigation/native';
@@ -292,7 +292,7 @@ const SalesReportScreen = React.memo(() => {
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text className="text-white" style={{ fontSize: 12 }}>
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -339,7 +339,7 @@ const SalesReportScreen = React.memo(() => {
                             />
                         </View>
                     </View>
-                    
+
                     <View className="mt-6 px-2">
                         <View className="w-full flex-row justify-end">
                             <TouchableOpacity>

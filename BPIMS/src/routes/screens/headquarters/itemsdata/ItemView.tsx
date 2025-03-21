@@ -22,7 +22,7 @@ import { ItemsHQParamList } from '../../../navigation/navigation';
 import { deleteItem, getCategoriesHQ, getProductHQ, saveItem } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
 import NumericKeypad from '../../../../components/NumericKeypad';
-import { formatPrice } from '../../../utils/dateFormat';
+import { formatPrice, truncateName } from '../../../utils/dateFormat';
 import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
 import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
@@ -439,7 +439,7 @@ const ItemViewScreen = ({ route }: Props) => {
 
                             <View className="px-4 w-full mt-6">
                                 <View className="w-full flex items-center">
-                                    <Text className="text-black text-sm">{editingItem.name.toUpperCase()}</Text>
+                                    <Text className="text-black text-sm">{truncateName(editingItem.name.toUpperCase())}</Text>
                                     <TouchableOpacity className='w-full mt-2 items-center' onPress={handleImageSelect}>
 
                                         {fileUrl ? (

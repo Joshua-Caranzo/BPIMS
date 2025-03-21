@@ -19,6 +19,7 @@ import {
     capitalizeFirstLetter,
     formatTransactionDateOnly,
     formatTransactionTime,
+    truncateShortName,
 } from '../../../utils/dateFormat';
 import {
     AnalysisReportResponse,
@@ -277,7 +278,7 @@ const SalesReportScreen = React.memo(() => {
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
                         <Text className="text-white" style={{ fontSize: 12 }}>
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>

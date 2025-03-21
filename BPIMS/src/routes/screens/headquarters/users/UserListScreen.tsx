@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { UsersHQParamList } from '../../../navigation/navigation';
 import { getUsers } from '../../../services/userRepo';
 import HQSidebar from '../../../../components/HQSidebar';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 const UserListScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -77,13 +78,8 @@ const UserListScreen = React.memo(() => {
                 <Text className="text-black text-lg font-bold">USERS</Text>
                 <View className="items-center mr-2">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{
-                                fontSize: user?.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-                            }}
-                        >
-                            {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -122,7 +118,7 @@ const UserListScreen = React.memo(() => {
                                 onPress={() => handleViewUser(user.id, user.name)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
-                                <Text className="text-black text-base">{user.name}</Text>
+                                <Text className="text-black text-base">{truncateName(user.name)}</Text>
                                 <View className="px-2">
                                     <ChevronRight color="#fe6500" height={20} width={20} />
                                 </View>

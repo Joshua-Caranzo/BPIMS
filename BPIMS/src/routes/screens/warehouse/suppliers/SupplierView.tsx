@@ -14,7 +14,7 @@ import { SupplierParamList } from '../../../navigation/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, launchCamera, CameraOptions, ImageLibraryOptions, MediaType } from 'react-native-image-picker';
 import { ChevronLeft, Trash2 } from 'react-native-feather';
-import { formatTransactionDateOnly } from '../../../utils/dateFormat';
+import { formatTransactionDateOnly, truncateName } from '../../../utils/dateFormat';
 import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
 import { SupplierDto, WHStockInputHistoryDto } from '../../../types/whType';
@@ -260,7 +260,7 @@ const SupplierViewScreen = React.memo(({ route }: Props) => {
                         <ChevronLeft height={28} width={28} color="#fe6500" />
                     </TouchableOpacity>
                     {supplier && supplier.id != 0 ? (
-                        <Text className="font-bold text-base text-gray-700 ml-3">{supplier.name}</Text>
+                        <Text className="font-bold text-base text-gray-700 ml-3">{truncateName(supplier.name)}</Text>
                     ) : (
                         <Text className="font-bold text-base text-gray-700 ml-3">New supplier</Text>
                     )}

@@ -6,7 +6,7 @@ import { StockInputDto, StockInputHistoryDto } from '../../../types/stockType';
 import { useNavigation } from '@react-navigation/native';
 import { StockMonitorParamList } from '../../../navigation/navigation';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { formatTransactionDateOnly } from '../../../utils/dateFormat';
+import { formatTransactionDateOnly, truncateName, truncateShortName } from '../../../utils/dateFormat';
 import { createStockInput, getStockHistory } from '../../../services/stockRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import FastImage from 'react-native-fast-image';
@@ -267,7 +267,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                                         setOpenSuppliers(false);
                                     }}
                                 >
-                                    <Text className="text-base">{item.name}</Text>
+                                    <Text className="text-base">{truncateName(item.name)}</Text>
                                 </TouchableOpacity>
                             )}
                         />
@@ -325,8 +325,8 @@ const StockInputScreen = memo(({ route }: Props) => {
                 </View>
                 <View className="items-center">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12 }}>
-                            {user?.name ? user.name.split(" ")[0].toUpperCase() : ""}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -334,7 +334,7 @@ const StockInputScreen = memo(({ route }: Props) => {
 
             <View className="px-4 w-full mt-6">
                 <View className="w-full flex items-center">
-                    <Text className="text-black text-sm">{item.name}</Text>
+                    <Text className="text-black text-sm">{truncateName(item.name)}</Text>
                     <View className="w-full flex items-center mt-2 mb-2">
                         {item.imagePath ? (
                             <FastImage source={{ uri: item.imagePath, priority: FastImage.priority.high }} className="w-24 h-24 rounded-lg" />) : (
@@ -433,7 +433,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                             {itemHistory.map((whOrder) => (
                                 <View key={whOrder.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
                                     <Text className="text-black text-xs flex-1 text-left">{item.sellByUnit ? Math.round(whOrder.qty) : Number(whOrder.qty).toFixed(2)}</Text>
-                                    <Text className="text-black text-xs flex-1 text-center">{whOrder.deliveredBy}</Text>
+                                    <Text className="text-black text-xs flex-1 text-center">{truncateName(whOrder.deliveredBy)}</Text>
                                     <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(whOrder.deliveryDate.toString())}</Text>
                                 </View>
                             ))}
@@ -454,7 +454,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                             {whItemHistory.map((whOrder) => (
                                 <View key={whOrder.id} className="flex flex-row justify-between py-1 border-b border-gray-200">
                                     <Text className="text-black text-xs flex-1 text-left">{item.sellByUnit ? Math.round(whOrder.qty) : Number(whOrder.qty).toFixed(2)}</Text>
-                                    <Text className="text-black text-xs flex-1 text-center">{whOrder.deliveredByName || "(No Supplier)"}</Text>
+                                    <Text className="text-black text-xs flex-1 text-center">{truncateName(whOrder.deliveredByName || "(No Supplier)")}</Text>
                                     <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(whOrder.deliveryDate.toString())}</Text>
                                 </View>
                             ))}

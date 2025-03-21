@@ -20,6 +20,7 @@ import {
   removeCartItem,
 } from '../../../services/salesRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
+import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'Cart'>;
 
@@ -140,6 +141,7 @@ const CartScreen = React.memo(({ route }: Props) => {
         if (!id) return;
         setButtonLoading(true);
         await removeCartItem(id);
+        await updateDiscount(null);
         await fetchCartItems();
         setSelectedItem(undefined);
         setQuantity('0');
@@ -299,14 +301,8 @@ const CartScreen = React.memo(({ route }: Props) => {
         <Text className="text-black text-lg font-bold">CART</Text>
         <View className="items-center mr-2">
           <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-            <Text
-              className="text-white"
-              style={{
-                fontSize:
-                  user.name && user.name.split(' ')[0].length > 8 ? 10 : 12,
-              }}
-            >
-              {user?.name ? user.name.split(' ')[0].toUpperCase() : ''}
+            <Text className="text-white" style={{ fontSize: 12 }}>
+              {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
             </Text>
           </View>
         </View>
@@ -339,7 +335,7 @@ const CartScreen = React.memo(({ route }: Props) => {
 
                         <View className="flex-column items-start justify-between w-[60%]">
                           <Text className="text-sm text-gray-800 overflow-ellipsis overflow-hidden whitespace-nowrap">
-                            {cartItem.name}
+                            {truncateName(cartItem.name)}
                           </Text>
                           <Text className="text-xs text-gray-600">₱ {cartItem.price}</Text>
                         </View>

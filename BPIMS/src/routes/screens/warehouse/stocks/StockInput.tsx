@@ -7,7 +7,7 @@ import { ObjectDto, UserDetails } from '../../../types/userType';
 import { useNavigation } from '@react-navigation/native';
 import { WhStockStackParamList } from '../../../navigation/navigation';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { formatTransactionDateOnly } from '../../../utils/dateFormat';
+import { formatTransactionDateOnly, truncateName, truncateShortName } from '../../../utils/dateFormat';
 import { createWHStockInput, getWHStockHistory } from '../../../services/whRepo';
 import NumericKeypad from '../../../../components/NumericKeypad';
 import FastImage from 'react-native-fast-image';
@@ -190,7 +190,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                                     onPress={() => {
                                         handleChange('deliveredBy', item.id);
                                         handleChange('deliveredByName', item.name);
-                                        setOpenSuppliers(false); // Close modal after selection
+                                        setOpenSuppliers(false);
                                     }}
                                 >
                                     <Text className="text-base">{item.name}</Text>
@@ -233,7 +233,7 @@ const StockInputScreen = memo(({ route }: Props) => {
             <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
                 <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
                 {editingField && (
-                    <TouchableOpacity disabled={!stockInput?.[editingField]} onPress={() => setInputMode(false)} className="w-[95%] rounded-xl p-3 flex flex-row items-center bg-[#fe6500]">
+                    <TouchableOpacity disabled={!stockInput?.[editingField]} onPress={() => setInputMode(false)} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!stockInput?.[editingField] ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}>
                         <View className="flex-1 flex flex-row items-center justify-center">
                             <Text className={`text-lg text-center font-bold text-white ${!stockInput?.[editingField] ? 'text-[#fe6500]' : 'text-white'}`}>
                                 Done
@@ -259,11 +259,8 @@ const StockInputScreen = memo(({ route }: Props) => {
                 </View>
                 <View className="items-center">
                     <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text
-                            className="text-white"
-                            style={{ fontSize: user?.name && user.name.split(" ")[0].length > 8 ? 10 : 12 }}
-                        >
-                            {user?.name ? user.name.split(" ")[0].toUpperCase() : ""}
+                        <Text className="text-white" style={{ fontSize: 12 }}>
+                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
                         </Text>
                     </View>
                 </View>
@@ -271,7 +268,7 @@ const StockInputScreen = memo(({ route }: Props) => {
 
             <View className="px-4 w-full mt-6">
                 <View className="w-full flex items-center">
-                    <Text className="text-black text-sm">{item.name}</Text>
+                    <Text className="text-black text-sm">{truncateName(item.name)}</Text>
                     <View className="w-full flex items-center mt-2 mb-2">
                         {item.imagePath ? (
                             <FastImage source={{
