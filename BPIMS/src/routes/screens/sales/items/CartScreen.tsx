@@ -414,7 +414,7 @@ const CartScreen = React.memo(({ route }: Props) => {
           <TouchableOpacity
             className={`w-[95%] rounded-xl p-3 items-center bg-[#fe6500] justify-center flex-row`}
             onPress={handlePayment}
-            disabled={buttonLoading}
+            disabled={buttonLoading == true}
           >
             <View className="flex-1 items-center">
               <Text className="font-bold text-center text-white text-lg">
