@@ -166,6 +166,7 @@ const ItemScreen = () => {
             setTotalCartItems(prev => prev + 1);
             setTotalPrice(prev => prev + parseFloat(updatedItem.price.toString()));
             try {
+                setButtonLoading(true);
                 await addItemToCart(updatedItem.id, 1);
             } catch (error) {
                 setProducts(prev =>
@@ -175,6 +176,9 @@ const ItemScreen = () => {
                 );
                 setTotalCartItems(prev => prev - 1);
                 setTotalPrice(prev => prev - parseFloat(updatedItem.price.toString()));
+            }
+            finally {
+                setButtonLoading(false)
             }
         }
     },), []);

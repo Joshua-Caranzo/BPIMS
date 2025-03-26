@@ -68,8 +68,7 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
                 .map(
                     (item) =>
                         `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)} ${item.name}\n` +
-                        `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n` +
-                        '[L]\n'
+                        `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n` 
                 )
                 .join('');
             const text =
@@ -87,7 +86,6 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
                 '[C]--------------------------------\n' +
                 `[L]<font size='normal'>Store Pick-Up</font>\n` +
                 '[C]--------------------------------\n' +
-                '[L]\n' +
                 itemsText +
                 '[C]--------------------------------\n' +
                 `[L]<font size='normal'>Sub Total: [R] PHP ${(Number(subTotal).toFixed(2))}</font>\n` +
