@@ -1,21 +1,22 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    ScrollView,
-    Text,
-    ActivityIndicator,
-} from 'react-native';
-import { getUserDetails } from '../../../utils/auth';
-import { ObjectDto, UserDetails } from '../../../types/userType';
-import { ChevronRight, Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { ChevronRight, PlusCircle, Search } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import WHSidebar from '../../../../components/WHSidebar';
 import { SupplierParamList } from '../../../navigation/navigation';
 import { getSupplierList } from '../../../services/whRepo';
-import WHSidebar from '../../../../components/WHSidebar';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { ObjectDto, UserDetails } from '../../../types/userType';
+import { getUserDetails } from '../../../utils/auth';
 
 const SupplierListScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -71,21 +72,10 @@ const SupplierListScreen = React.memo(() => {
             {user && (
                 <WHSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex flex-row justify-between px-2">
-                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">SUPPLIER</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="justify-center items-center bg-gray relative mt-4 mb-6">
-                <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 justify-between items-center">
+            <TitleHeaderComponent isParent={true} userName={user?.name || ""} title="Supplier" onPress={toggleSidebar}></TitleHeaderComponent>
+
+            <View className="justify-center items-center bg-gray relative">
+                <View className="flex flex-row w-full bg-gray-300 py-1 px-3 justify-between items-center">
                     <View className="flex-row items-center rounded-md px-2 flex-1">
                         <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
                             <Search width={20} height={20} color="black" />
@@ -111,17 +101,14 @@ const SupplierListScreen = React.memo(() => {
                         <Text className="text-center text-[#fe6500]">Loading Suppliers...</Text>
                     </View>
                 ) : (
-                    <ScrollView className="w-full mb-8">
+                    <ScrollView className="w-full mb-8 px-2" showsVerticalScrollIndicator={false}>
                         {filteredSuppliers.map((s) => (
                             <TouchableOpacity
                                 key={s.id}
                                 onPress={() => handleViewSupplier(s.id)}
-                                className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
-                            >
-                                <Text className="text-black text-base">{truncateName(s.name)}</Text>
-                                <View className="px-2">
-                                    <ChevronRight color="#fe6500" height={20} width={20} />
-                                </View>
+                                className="bg-gray px-2 py-3 border-b border-gray-300 flex flex-row justify-between items-center w-full"                            >
+                                <ExpandableText text={s.name}></ExpandableText>
+                                <ChevronRight color="#fe6500" height={20} />
                             </TouchableOpacity>
                         ))}
                     </ScrollView>

@@ -7,6 +7,6 @@ export type CallResultDto<T> = {
 };
 
 export type CallResultFileDto<T> = {
-    data: T;
-    headers: Record<string, string>; // ✅ FIX: Ensure headers are stored as an object
+	data: T;
+	headers: Record<string, string>;
 };

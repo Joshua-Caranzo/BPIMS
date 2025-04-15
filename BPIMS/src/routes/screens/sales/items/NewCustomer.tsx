@@ -1,24 +1,24 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Image,
+  ActivityIndicator,
   Alert,
   Keyboard,
-  ActivityIndicator,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Camera, ChevronLeft } from 'react-native-feather';
+import FastImage from 'react-native-fast-image';
+import { Camera } from 'react-native-feather';
+import RNFS from 'react-native-fs';
 import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { CustomerDto } from '../../../types/customerType';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { ItemStackParamList } from '../../../navigation/navigation';
 import { saveCustomer } from '../../../services/customerRepo';
 import { updateCustomer } from '../../../services/salesRepo';
-import { ItemStackParamList } from '../../../navigation/navigation';
-import RNFS from 'react-native-fs';
-import FastImage from 'react-native-fast-image';
+import { CustomerDto } from '../../../types/customerType';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'NewCustomer'>;
 
@@ -35,6 +35,7 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
     branch: user.branchName,
     fileUrl: null,
     fileName: null,
+    isLoyalty: false
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -189,18 +190,9 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
 
   return (
     <View className="flex flex-1">
-      <View className="top-3 flex flex-row justify-between px-2">
-        <View className="flex flex-row">
-          <TouchableOpacity
-            className="bg-gray px-1 pb-2 ml-2"
-            onPress={() => navigation.goBack()}
-          >
-            <ChevronLeft height={28} width={28} color="#fe6500" />
-          </TouchableOpacity>
-          <Text className="text-black text-lg font-bold ml-3">NEW CUSTOMER</Text>
-        </View>
-      </View>
-      <View className="w-full h-[2px] bg-gray-500 mt-2 mb-2"></View>
+      <TitleHeaderComponent title='New Customer' isParent={false} userName={user.name} onPress={() => navigation.goBack()}></TitleHeaderComponent>
+
+      <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
       <View className="px-4 w-full">
         <View className="w-full flex-row justify-between">
           <View className="flex-1">

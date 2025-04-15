@@ -1,35 +1,39 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { debounce } from 'lodash';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View,
+    ActivityIndicator,
+    BackHandler,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
     Text,
     TouchableOpacity,
-    Dimensions,
-    ActivityIndicator,
-    StyleSheet,
-    ScrollView,
-    BackHandler,
+    View,
 } from 'react-native';
-import { ObjectDto, UserDetails } from '../../../types/userType';
-import { getUserDetails } from '../../../utils/auth';
+import DatePicker from 'react-native-date-picker';
+import { ArrowRight, ChevronDown, Printer } from 'react-native-feather';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
-import { Menu } from 'react-native-feather';
-import { debounce } from 'lodash';
-import { getSocketData } from '../../../utils/apiService';
+import ExpandableText from '../../../../components/ExpandableText';
+import HQSidebar from '../../../../components/HQSidebar';
+import MonthYearPicker from '../../../../components/MonthYearPicker';
+import SelectModal from '../../../../components/SelectModal';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { SalesReportHQParamList } from '../../../navigation/navigation';
+import { generateSalesPDF, getAllTransactionHistoryHQ, getOldestTransaction } from '../../../services/salesRepo';
+import { getBranches } from '../../../services/userRepo';
 import {
-    AnalysisReportResponse,
     BranchDto,
     DailyTransactionDto,
     DailyTransactionResponse,
-    TotalSalesDto,
+    TotalSalesDto
 } from '../../../types/reportType';
-import HQSidebar from '../../../../components/HQSidebar';
-import { FilterType, SalesData } from '../../../types/salesType';
-import { formatTransactionDateOnly, truncateShortName } from '../../../utils/dateFormat';
-import { getAllTransactionHistoryHQ } from '../../../services/salesRepo';
-import { getBranches } from '../../../services/userRepo';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SalesReportHQParamList } from '../../../navigation/navigation';
+import { FilterTypeHQ, SaleItemsDto, SalesDataHQ } from '../../../types/salesType';
+import { ObjectDto, UserDetails } from '../../../types/userType';
+import { getSocketData } from '../../../utils/apiService';
+import { getUserDetails } from '../../../utils/auth';
+import { formatCurrency, formatmmddyyyyDate } from '../../../utils/dateFormat';
 
 const SalesReportScreen = React.memo(() => {
     const [user, setUser] = useState<UserDetails>();
@@ -42,21 +46,43 @@ const SalesReportScreen = React.memo(() => {
     const socketRef = useRef<WebSocket | null>(null);
     const salesSocketRef = useRef<WebSocket | null>(null);
     const analysisSocketRef = useRef<WebSocket | null>(null);
+    const analysisItemsSocketRef = useRef<WebSocket | null>(null);
     const analyticsSocketRef = useRef<WebSocket | null>(null);
     const [totalSalesMonthly, setTotalSalesMonthly] = useState<number>(0);
     const [totalSalesYearly, setTotalSalesYearly] = useState<number>(0);
-    const [selectedFilter, setSelectedFilter] = useState<FilterType>("Month");
+    const [selectedFilter, setSelectedFilter] = useState<FilterTypeHQ>("Monthly");
     const screenWidth = Dimensions.get('window').width;
-    const [salesData, setSalesData] = useState<SalesData>();
-    const [analysisReport, setAnalysisReport] = useState<AnalysisReportResponse>();
+    const [salesData, setSalesData] = useState<SalesDataHQ[]>([]);
+    const [salesItemData, setSalesItemData] = useState<SaleItemsDto>();
     const [transactionHistory, setTransactionHistory] = useState<DailyTransactionDto[]>([]);
     const navigation = useNavigation<NativeStackNavigationProp<SalesReportHQParamList>>();
+    const [dayFilter, setDayFilter] = useState<boolean>(false);
+    const [fromDate, setFromDate] = useState<Date>(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
+    });
+    const [openDateFrom, setOpenDateFrom] = useState<boolean>(false);
+    const [toDate, setToDate] = useState<Date>(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
+    });
+    const [openToDate, setOpenToDate] = useState<boolean>(false);
+    const [activeBranch, setActiveBranch] = useState<ObjectDto>();
+    const [reportBranches, setReportBranches] = useState<ObjectDto[]>([]);
+    const [openBranch, setOpenBranch] = useState<boolean>(false);
+    const [startTransactionDate, setStartTransactionDate] = useState<Date>();
+    const [monthDate, setMonthDate] = useState<Date>();
+    const [monthFilter, setMonthFilter] = useState<boolean>(false);
 
-    const filteredData = salesData ? salesData[selectedFilter] : [];
+    const filteredData = salesData ? salesData : [];
+    const filters: FilterTypeHQ[] = ["Daily", "Weekly", "Monthly", "Yearly", "All-Time"];
+
     const chartPadding = 40; // Adjust padding/margin as needed
 
-    const dataLength = filteredData.length || 1; // Avoid division by zero
-    const calculatedSpacing = selectedFilter === "All" || "Year"
+    const dataLength = filteredData?.length || 1; // Avoid division by zero
+    const calculatedSpacing = selectedFilter === "All-Time" || "Year"
         ? Math.max((screenWidth - chartPadding) / dataLength, 60)  // If "all" is selected, min 60
         : Math.max((screenWidth - chartPadding) / dataLength, 30); // Otherwise, min 30
 
@@ -75,10 +101,17 @@ const SalesReportScreen = React.memo(() => {
     useEffect(() => {
         const fetchUserDetails = async () => {
             const user = await getUserDetails();
+            let branchesResponse = await getBranches();
+            const oldestDate = await getOldestTransaction(activeBranch?.id || 0)
+            const allBranch: ObjectDto = { id: 0, name: "ALL" };
+            branchesResponse.unshift(allBranch);
             setUser(user);
+            setReportBranches(branchesResponse);
+            setStartTransactionDate(oldestDate.data)
         };
         fetchUserDetails();
     }, []);
+
 
     useEffect(() => {
         const fetchTransactionHistory = async () => {
@@ -160,12 +193,24 @@ const SalesReportScreen = React.memo(() => {
             return;
         }
 
-        const analysisSocket = getSocketData('analyticsDataHQ');
+        const formatDate = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const analysisSocket = getSocketData('analyticsDataHQ', {
+            fromDate: formatDate(fromDate),
+            toDate: formatDate(toDate),
+            branchId: activeBranch?.id || 0
+        });
+
         analysisSocketRef.current = analysisSocket;
 
         analysisSocket.onmessage = (event) => {
             try {
-                const parsedData: SalesData = JSON.parse(event.data);
+                const parsedData: SalesDataHQ[] = JSON.parse(event.data);
                 debouncedAnalyticsData(parsedData);
             } catch (error) {
                 console.error('Error parsing WebSocket data:', error);
@@ -177,31 +222,76 @@ const SalesReportScreen = React.memo(() => {
                 analysisSocketRef.current.close();
             }
         };
-    }, [user]);
+    }, [user, fromDate, toDate, activeBranch]);
 
     useEffect(() => {
         if (!user) {
             return;
         }
 
-        const analyticsSocket = getSocketData('analysisReportHQ');
-        analyticsSocketRef.current = analyticsSocket;
+        // Format dates to YYYY-MM-DD
+        const formatDate = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
 
-        analyticsSocket.onmessage = (event) => {
+        const analysisItemsSocket = getSocketData('analyticsGrossSalesDataHQ', {
+            fromDate: formatDate(fromDate),
+            toDate: formatDate(toDate),
+            branchId: activeBranch?.id || 0
+        });
+
+        analysisItemsSocketRef.current = analysisItemsSocket;
+
+        analysisItemsSocket.onmessage = (event) => {
             try {
-                const parsedData: AnalysisReportResponse = JSON.parse(event.data);
-                debouncedAnalysisData(parsedData);
+                const parsedData: SaleItemsDto = JSON.parse(event.data);
+                debouncedAnalyticsItemsData(parsedData);
             } catch (error) {
                 console.error('Error parsing WebSocket data:', error);
             }
         };
 
         return () => {
-            if (analyticsSocketRef.current) {
-                analyticsSocketRef.current.close();
+            if (analysisItemsSocketRef.current) {
+                analysisItemsSocketRef.current.close();
             }
         };
-    }, [user]);
+    }, [user, fromDate, toDate, activeBranch]);
+
+    // Update date range when selectedFilter changes
+    useEffect(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let newFromDate = new Date(today);
+        let newToDate = new Date(today);
+
+        switch (selectedFilter) {
+            case 'Daily':
+                // Already set to current date
+                break;
+            case 'Weekly':
+                newFromDate.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+                break;
+            case 'Monthly':
+                newFromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                break;
+            case 'Yearly':
+                newFromDate = new Date(today.getFullYear(), 0, 1); // January 1st
+                break;
+            case 'All-Time':
+                newFromDate = startTransactionDate ? new Date(startTransactionDate) : new Date();
+                break;
+        }
+
+        setFromDate(newFromDate);
+        setToDate(newToDate);
+    }, [selectedFilter, startTransactionDate]);
+
+
 
     const debouncedBranchData = useCallback(
         debounce((data: BranchDto[]) => {
@@ -234,15 +324,15 @@ const SalesReportScreen = React.memo(() => {
 
 
     const debouncedAnalyticsData = useCallback(
-        debounce((data: SalesData) => {
+        debounce((data: SalesDataHQ[]) => {
             setSalesData(data);
         }, 100),
         []
     );
 
-    const debouncedAnalysisData = useCallback(
-        debounce((data: AnalysisReportResponse) => {
-            setAnalysisReport(data);
+    const debouncedAnalyticsItemsData = useCallback(
+        debounce((data: SaleItemsDto) => {
+            setSalesItemData(data);
         }, 100),
         []
     );
@@ -270,6 +360,25 @@ const SalesReportScreen = React.memo(() => {
         return numberOfDataPoints > 1 ? (screenWidth - 180) / (numberOfDataPoints) : 0;
     }, [barData, screenWidth]);
 
+
+    const handleGeneratePDF = useCallback(async () => {
+        await generateSalesPDF(fromDate, toDate, activeBranch?.id || 0);
+    }, [fromDate, toDate, activeBranch]);
+
+    const onValueChange = useCallback(
+        (newDate: Date) => {
+            const selectedDate = newDate || new Date();
+            const newFromDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const toDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+
+            setMonthFilter(false);
+            setMonthDate(selectedDate);
+            setFromDate(newFromDate)
+            setToDate(toDate)
+        },
+        [setMonthDate, setMonthFilter, setFromDate, setToDate, monthFilter],
+    );
+
     if (loading) {
         return (
             <View style={styles.loaderContainer}>
@@ -284,44 +393,36 @@ const SalesReportScreen = React.memo(() => {
             {user && (
                 <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex bg-gray flex-row justify-between px-2">
-                <TouchableOpacity className="mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">SALES REPORT</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="w-full justify-center items-center bg-gray relative mt-4">
-                <View className="w-full flex-row justify-between px-2">
-                    {[0, 1, 2].map((id) => (
+            <TitleHeaderComponent isParent={true} userName={user?.name || ""} title="Sales Report" onPress={toggleSidebar}></TitleHeaderComponent>
+
+            <View className="w-full justify-center items-center bg-gray relative">
+                <View className="w-full flex-row justify-between items-center">
+                    {['TODAY', 'MONTH', 'ANALYTICS'].map((label, index) => (
                         <TouchableOpacity
-                            key={id}
-                            onPress={() => handleChangeCategory(id)}
-                            className={`${activeCategory === id ? 'border-b-4 border-yellow-500' : ''} w-[30%] justify-center items-center`}
+                            key={index}
+                            onPress={() => handleChangeCategory(index)}
+                            className={`${activeCategory === index ? 'border-b-4 border-yellow-500' : ''} flex-1 justify-center items-center p-2`}
                         >
-                            <Text
-                                className={`${activeCategory === id ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium text-center`}
-                            >
-                                {['TODAY', 'MONTH', 'ANALYTICS'][id]}
-                            </Text>
+                            <View className="flex-row items-center space-x-1">
+                                <Text
+                                    className={`${activeCategory === index ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium text-center`}
+                                >
+                                    {label}
+                                </Text>
+
+                            </View>
                         </TouchableOpacity>
                     ))}
                 </View>
             </View>
             <View className="w-full h-[2px] bg-gray-500"></View>
             {activeCategory === 0 && (
-                <ScrollView className="flex-1 bg-white p-4">
+                <ScrollView className="flex-1 bg-gray p-4">
                     <View className="w-full justify-center items-center mt-4">
                         <View className="w-full bg-gray-50 rounded-lg p-3 shadow-sm">
                             <BarChart
                                 isAnimated
-                                noOfSections={3}
+                                noOfSections={4}
                                 frontColor="#fe6500"
                                 data={barData}
                                 yAxisThickness={0}
@@ -334,7 +435,7 @@ const SalesReportScreen = React.memo(() => {
                                 yAxisTextStyle={{ fontSize: 10, color: '#6B7280' }}
                                 hideYAxisText
                                 hideRules
-                                disableScroll
+
                                 initialSpacing={10}
                             />
                         </View>
@@ -382,7 +483,9 @@ const SalesReportScreen = React.memo(() => {
                                         return (
                                             <View key={itemIndex} className="flex flex-row justify-between py-2 border-b border-gray-100">
                                                 <Text className="text-sm text-gray-700 w-1/4">{itemIndex + 1}.</Text>
-                                                <Text className="text-sm text-gray-700 w-1/2">{item ? item.itemName : 'N/A'}</Text>
+                                                <View className='flex-1'>
+                                                    <ExpandableText text={item ? item.itemName : 'N/A'} className={'text-left'} />
+                                                </View>
                                                 <Text className="text-sm text-gray-700 w-1/4 text-right">
                                                     {item ? `₱ ${item.totalSales.toFixed(2)}` : '₱ 0.00'}
                                                 </Text>
@@ -422,91 +525,147 @@ const SalesReportScreen = React.memo(() => {
                 </View>
             )}
             {activeCategory === 2 && (
-                <View className="w-full justify-center items-center bg-gray mt-2 p-2">
+                <View className=" w-full bg-gray p-2">
                     <View className="w-full">
-
-                        <View className="w-full flex-row justify-around mb-4">
-                            {(["Week", "Month", "Year", "All"] as FilterType[]).map((filter) => (
-                                <TouchableOpacity
-                                    key={filter}
-                                    className={`px-4 py-2 rounded ${selectedFilter === filter ? "bg-[#fe6500]" : "bg-transparent"
-                                        }`}
-                                    onPress={() => setSelectedFilter(filter)}
-                                >
-                                    <Text className={`${selectedFilter === filter ? "text-white" : "text-black"
-                                        }`}>{filter}</Text>
+                        <View className='items-end'>
+                            <TouchableOpacity onPress={handleGeneratePDF} className='flex mb-2 mr-2 bg-[#fe6500] p-2 text-black flex flex-row rounded-lg'>
+                                <Printer width={14} height={14} color={"white"}></Printer>
+                                <Text className='text-white ml-2 text-xs' >
+                                    Print PDF
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View>
+                            <View className="w-full mb-4 flex flex-row gap-2">
+                                <TouchableOpacity onPress={() => setDayFilter(true)} className=' w-1/2 border border-gray-300 rounded flex-1 flex flex-row p-2 justify-between'>
+                                    <Text>{selectedFilter}</Text>
+                                    <ChevronDown height={18} color={"#fe6500"}></ChevronDown>
                                 </TouchableOpacity>
-                            ))}
+                                {selectedFilter == 'Monthly' && (
+                                    <View className='w-1/2  justify-between flex flex-row border border-gray-300 rounded items-center'>
+                                        <TouchableOpacity onPress={() => setMonthFilter(true)} className='p-2'>
+                                            <Text>{`${fromDate.toLocaleString('default', { month: 'long' })} ${fromDate.getFullYear()}`}</Text>
+                                        </TouchableOpacity>
+                                        <MonthYearPicker
+                                            visible={monthFilter}
+                                            initialDate={fromDate}
+                                            onDone={(date) => {
+                                                onValueChange(date)
+                                            }}
+                                            onCancel={() => setMonthFilter(false)}
+                                        />
+                                        <ChevronDown height={18} color={"#fe6500"}></ChevronDown>
+                                    </View>
+                                )}
+                            </View>
+                            <View className="w-full mb-4 flex flex-row gap-2">
+                                <View className=' w-[60%] flex flex-row border border-gray-300 rounded items-center justify-between '>
+                                    <TouchableOpacity onPress={() => setOpenDateFrom(true)} className=' p-2'>
+                                        <Text>{formatmmddyyyyDate(fromDate)}</Text>
+                                    </TouchableOpacity>
+                                    <ArrowRight height={16} color={"#fe6500"}></ArrowRight>
+                                    <DatePicker buttonColor='#fe6500'
+                                        theme='light'
+                                        dividerColor='#fe6500' id={"fromDate"} modal open={openDateFrom} date={fromDate} mode="date" maximumDate={new Date()}
+                                        onConfirm={(date) => { setOpenDateFrom(false); setFromDate(date) }}
+                                        onCancel={() => setOpenDateFrom(false)} />
+                                    <TouchableOpacity onPress={() => setOpenToDate(true)} className='p-2'>
+                                        <Text>{formatmmddyyyyDate(toDate)}</Text>
+                                    </TouchableOpacity>
+                                    <DatePicker buttonColor='#fe6500'
+                                        theme='light'
+                                        dividerColor='#fe6500' id={"todate"} modal open={openToDate} date={toDate} mode="date" maximumDate={new Date()} minimumDate={fromDate}
+                                        onConfirm={(date) => { setOpenToDate(false); setToDate(date) }}
+                                        onCancel={() => setOpenToDate(false)} />
+                                </View>
+                                <TouchableOpacity onPress={() => setOpenBranch(true)} className='w-[40%] border border-gray-300 rounded flex-1 flex flex-row p-2 justify-between'>
+                                    <Text>{activeBranch?.name || "ALL"}</Text>
+                                    <ChevronDown height={18} color={"#fe6500"}></ChevronDown>
+                                </TouchableOpacity>
+                            </View>
+
+                            <SelectModal visible={dayFilter} title="Select Filter" onClose={() => setDayFilter(false)} onSelect={(item) => setSelectedFilter(item)} keyExtractor={(item) => item}
+                                labelExtractor={(item) => item} items={filters}>
+                            </SelectModal>
+                            <SelectModal visible={openBranch} title="Select Branch" onClose={() => setOpenBranch(false)} onSelect={(item) => setActiveBranch(item)} keyExtractor={(item) => item.id.toString()}
+                                labelExtractor={(item) => item.name} items={reportBranches}>
+                            </SelectModal>
                         </View>
-
-                        <LineChart
-                            data={filteredData}
-                            width={screenWidth - 40}
-                            animateOnDataChange
-                            thickness={3}
-                            height={200}
-                            color="#fe6500"
-                            noOfSections={3}
-                            areaChart
-                            startFillColor="rgba(254, 101, 0, 0.4)"
-                            endFillColor="rgba(243, 244, 246, 0.4)"
-                            startOpacity={0.4}
-                            endOpacity={0.4}
-                            hideRules
-                            yAxisColor="transparent"
-                            xAxisColor="transparent"
-                            dataPointsColor="#fe6500"
-                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10, textAlign: 'center' }}
-                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
-                            adjustToWidth
-                            hideYAxisText
-                            initialSpacing={20}
-                            endSpacing={20}
-                            dataPointsWidth={20}
-                            spacing={calculatedSpacing}
-                            textColor="black"
-
-                        />
-                    </View>
-                    {analysisReport && (
-                        <View className="w-full mt-4 p-4">
-                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
-                                <View className="flex flex-column items-center">
-                                    <Text
-                                        className={`font-semibold text-lg ${analysisReport.percentChange > 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}
-                                    >
-                                        {analysisReport.percentChange > 0 ? '▲' : '▼'} {analysisReport.percentChange}%
+                        <View className="w-full mb-4 px-2">
+                            <View className="w-full mb-4 flex flex-row gap-2">
+                                <View className='border border-gray-300 rounded flex-1 flex flex-columns p-2 items-center'>
+                                    <Text className='text-gray-700 font-bold'>
+                                        Gross Sales
                                     </Text>
-                                    <Text className="text-gray-500 text-xs">This month vs avg months</Text>
+                                    <Text className='text-[#fe6500]'>{formatCurrency(salesItemData?.grossSales || 0)}</Text>
                                 </View>
                             </View>
-                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
-                                <View className="flex flex-column items-center">
-                                    <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesAmount}</Text>
-                                    <Text className="text-gray-500 text-xs">Highest Sales – {formatTransactionDateOnly(analysisReport.highestSalesDate || "")}</Text>
+
+                            <View className="w-full mb-4 flex flex-row gap-2">
+                                <View className='border border-gray-300 rounded w-1/2 p-2 items-center'>
+                                    <Text className='text-gray-700 font-bold'>Discounts</Text>
+                                    <Text className='text-[#fe6500]'>{formatCurrency(salesItemData?.totalDiscount || 0)}</Text>
+                                </View>
+                                <View className='border border-gray-300 rounded w-1/2 p-2 items-center'>
+                                    <Text className='text-gray-700 font-bold'>Net Sales</Text>
+                                    <Text className='text-[#fe6500]'>{formatCurrency(salesItemData?.netSales || 0)}</Text>
                                 </View>
                             </View>
-                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
-                                <View className="flex flex-column items-center">
-                                    <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesMonthAmount}</Text>
-                                    <Text className="text-gray-500 text-xs">Highest Sales This Month – {formatTransactionDateOnly(analysisReport.highestSalesMonthDate || "")}</Text>
+                            <View className="w-full mb-4 flex flex-row gap-2">
+
+                                <View className='border border-gray-300 rounded w-1/2 p-2 items-center'>
+                                    <Text className='text-gray-700 font-bold'>Item Cost</Text>
+                                    <Text className='text-[#fe6500]'>{formatCurrency(salesItemData?.itemCost || 0)}</Text>
+                                </View>
+                                <View className='border border-gray-300 rounded w-1/2 p-2 items-center'>
+                                    <Text className='text-gray-700 font-bold'>Gross Profit</Text>
+                                    <Text className='text-[#fe6500]'>{formatCurrency(salesItemData?.grossProfit || 0)}</Text>
                                 </View>
                             </View>
-                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
-                                <View className="flex flex-column items-center">
-                                    <Text className="text-blue-600 font-semibold text-lg">{analysisReport.highOrderPercentage}</Text>
-                                    <Text className="text-gray-500 text-xs">High-value orders (₱1,500+)</Text>
-                                </View>
-                            </View>
-                            <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
-                                <View className="flex flex-column items-center">
-                                    <Text className="text-orange-600 font-semibold text-lg">{analysisReport.peakPeriod}</Text>
-                                    <Text className="text-gray-500 text-xs">Peak Sales Hours</Text>
-                                </View>
-                            </View>
+
                         </View>
-                    )}
+
+                        {(filteredData && filteredData[0]?.label != null) ? (
+                            filteredData.length === 1 ? (
+                                <View className="w-full items-center mt-4">
+                                    <Text className="text-gray-500 text-sm">Not enough data</Text>
+                                </View>
+                            ) : (
+                                <LineChart
+                                    data={filteredData}
+                                    width={screenWidth - 40}
+                                    animateOnDataChange
+                                    thickness={3}
+                                    height={200}
+                                    color="#fe6500"
+                                    noOfSections={3}
+                                    areaChart
+                                    startFillColor="rgba(254, 101, 0, 0.4)"
+                                    endFillColor="rgba(243, 244, 246, 0.4)"
+                                    startOpacity={0.4}
+                                    endOpacity={0.4}
+                                    hideRules
+                                    yAxisColor="transparent"
+                                    xAxisColor="transparent"
+                                    dataPointsColor="#fe6500"
+                                    xAxisLabelTextStyle={{ color: '#000', fontSize: 10, textAlign: 'center' }}
+                                    yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                                    adjustToWidth
+                                    hideYAxisText
+                                    initialSpacing={40}
+                                    endSpacing={20}
+                                    dataPointsWidth={20}
+                                    spacing={calculatedSpacing}
+                                    textColor="black"
+
+                                />
+                            )
+                        ) : (
+                            <View className="w-full items-center mt-4">
+                                <Text className="text-gray-500 text-sm">No transactions available</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
             )}
         </View>

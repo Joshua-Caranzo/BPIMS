@@ -1,6 +1,6 @@
 import LottieView from 'lottie-react-native';
-import React, { useEffect, useRef, useCallback, memo } from 'react';
-import { View, Image, Animated, StyleSheet, Text } from 'react-native';
+import React, { memo, useCallback, useEffect, useRef } from 'react';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 
 interface LottieLoaderProps {
   message?: string;

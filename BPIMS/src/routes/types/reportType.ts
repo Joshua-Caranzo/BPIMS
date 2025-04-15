@@ -12,6 +12,7 @@ export type DailyTransactionDto = {
   transactionDate: Date;
   cashierName: string;
   items: DailyTransactionItem[];
+  isVoided: boolean;
 };
 
 export type SalesGraphDto = {

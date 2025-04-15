@@ -1,23 +1,22 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    TextInput,
-    Modal,
-    FlatList,
-    Switch,
     ActivityIndicator,
+    Alert,
     Keyboard,
-    Alert
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Eye, EyeOff } from 'react-native-feather';
+import SelectModal from '../../../../components/SelectModal';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { UsersHQParamList } from '../../../navigation/navigation';
-import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Eye, EyeOff, Trash2, XCircle } from 'react-native-feather';
 import { addUser, editUser, getBranches, getDepartments, getUser, setUserInactive } from '../../../services/userRepo';
 import { ObjectDto, UserListDto } from '../../../types/userType';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<UsersHQParamList, 'UserView'>;
 
@@ -192,41 +191,20 @@ const UserViewScreen = React.memo(({ route }: Props) => {
         }
     };
 
+    const handleBranchChange = (item: { id: number; name: string }) => {
+        handleChange("branchId", item.id);
+        handleChange("branchName", item.name);
+        closeModal();
+    };
+
+    const handleDepartmentChange = (item: { id: number; name: string }) => {
+        handleChange("departmentId", item.id);
+        handleChange("deptName", item.name);
+        closeModal();
+    };
+
     const openModal = (type: 'branch' | 'department') => setModalType(type);
     const closeModal = () => setModalType(null);
-
-    const renderModal = (data: ObjectDto[], type: 'branch' | 'department') => (
-        <Modal transparent visible={modalType === type} animationType="slide">
-            <View className="flex-1 justify-center items-center bg-black/50">
-                <View className="bg-white p-5 rounded-lg w-4/5 relative">
-                    <TouchableOpacity className="absolute top-2 right-2 p-1" onPress={closeModal}>
-                        <XCircle width={24} height={24} />
-                    </TouchableOpacity>
-
-                    <Text className="text-lg font-bold mb-2 text-center">
-                        Select {type === 'branch' ? 'Branch' : 'Department'}
-                    </Text>
-
-                    <FlatList
-                        data={data}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                className="p-3 border-b border-gray-200"
-                                onPress={() => {
-                                    handleChange(type === 'branch' ? 'branchId' : 'departmentId', item.id);
-                                    handleChange(type === 'branch' ? 'branchName' : 'deptName', item.name);
-                                    closeModal();
-                                }}
-                            >
-                                <Text className="text-base">{item.name}</Text>
-                            </TouchableOpacity>
-                        )}
-                    />
-                </View>
-            </View>
-        </Modal>
-    );
 
     if (loading) {
         return (
@@ -238,25 +216,8 @@ const UserViewScreen = React.memo(({ route }: Props) => {
     }
 
     return (
-        <View className="flex flex-1 p-2">
-            <View className='flex flex-row justify-between mb-2'>
-                <TouchableOpacity className="mr-2" onPress={() => navigation.navigate('Users')}>
-                    <ChevronLeft height={28} width={28} color="#fe6500" />
-                </TouchableOpacity>
-                <View className='pr-4 flex-1 items-center'>
-                    <Text className="font-bold text-lg">{user?.id !== 0 ? truncateName(name) : 'New User'}</Text>
-                </View>
-                {user && user.id != 0 && (
-                    <View>
-                        <TouchableOpacity
-                            onPress={() => userInactive()}
-                            className="rounded-full w-6 h-6 flex items-center justify-center mr-2"
-                        >
-                            <Trash2 height={20} width={20} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
+        <View className="flex flex-1 px-4">
+            <TitleHeaderComponent isParent={false} showTrash={user && user.id != 0} onTrashPress={userInactive} userName={user?.name || ""} title={user?.id !== 0 ? (name) : 'New User'} onPress={() => navigation.navigate('Users')}></TitleHeaderComponent>
 
             <View className="w-full bg-gray-200 h-[2px] w-full mb-4"></View>
 
@@ -407,10 +368,28 @@ const UserViewScreen = React.memo(({ route }: Props) => {
                             <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
                         )}
                     </TouchableOpacity>
+
+                    <SelectModal
+                        visible={modalType == 'branch'}
+                        onClose={() => closeModal()}
+                        onSelect={handleBranchChange}
+                        items={branches}
+                        keyExtractor={(item) => item.id.toString()}
+                        labelExtractor={(item) => item.name}
+                        title='SELECT BRANCH'
+                    />
+
+                    <SelectModal
+                        visible={modalType == 'department'}
+                        onClose={() => closeModal()}
+                        onSelect={handleDepartmentChange}
+                        items={departments}
+                        keyExtractor={(item) => item.id.toString()}
+                        labelExtractor={(item) => item.name}
+                        title='SELECT DEPARTMENT'
+                    />
                 </View>
             )}
-            {renderModal(branches, 'branch')}
-            {renderModal(departments, 'department')}
         </View>
     );
 });

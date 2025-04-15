@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MD5 from "crypto-js/md5";
-import { UserDto, UserDetails } from "../types/userType";
+import { UserDetails, UserDto } from "../types/userType";
 
 export function hashPassword(password: string): string {
     return MD5(password).toString();

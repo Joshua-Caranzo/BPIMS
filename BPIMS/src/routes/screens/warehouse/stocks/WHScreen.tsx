@@ -1,17 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { ObjectDto, UserDetails } from "../../../types/userType";
-import WHSidebar from "../../../../components/WHSidebar";
-import { getUserDetails } from "../../../utils/auth";
-import { Menu, PlusCircle, Search } from "react-native-feather";
-import { WHStockDto } from "../../../types/whType";
-import { getSupplierList, getWHStocks } from "../../../services/whRepo";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { WhStockStackParamList } from "../../../navigation/navigation";
-import { getSocketData } from "../../../utils/apiService";
 import { debounce } from "lodash";
-import { truncateName, truncateShortName } from "../../../utils/dateFormat";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { MinusCircle, PlusCircle, Search } from "react-native-feather";
+import ExpandableText from "../../../../components/ExpandableText";
+import TitleHeaderComponent from "../../../../components/TitleHeaderComponent";
+import WHSidebar from "../../../../components/WHSidebar";
+import { WhStockStackParamList } from "../../../navigation/navigation";
+import { getSupplierList, getWHStocks } from "../../../services/whRepo";
+import { ObjectDto, UserDetails } from "../../../types/userType";
+import { WHStockDto } from "../../../types/whType";
+import { getSocketData } from "../../../utils/apiService";
+import { getUserDetails } from "../../../utils/auth";
+import { formatQuantity } from "../../../utils/dateFormat";
 
 const WHScreen = React.memo(() => {
     const [isSidebarVisible, setSidebarVisible] = useState(false);
@@ -72,8 +74,7 @@ const WHScreen = React.memo(() => {
                 const response = await getWHStocks(
                     categoryId,
                     page,
-                    search.trim(),
-                    Number(userResponse?.branchId)
+                    search.trim()
                 );
                 if (response.isSuccess) {
                     const newProducts = response.data;
@@ -117,7 +118,6 @@ const WHScreen = React.memo(() => {
         inputRef.current?.focus();
     }, []);
 
-
     useEffect(() => {
         const fetchUserDetails = async () => {
             const user = await getUserDetails();
@@ -134,34 +134,40 @@ const WHScreen = React.memo(() => {
         if (user) {
             navigation.navigate('StockInput', { item, user, suppliers });
         }
-    }, [user]);
+    }, [user, suppliers]);
+
+    const handleReturnToSupplier = useCallback((item: WHStockDto) => {
+        if (user) {
+            navigation.navigate('ReturnStock', { item, user, suppliers });
+        }
+    }, [user, suppliers]);
 
     const renderItem = useCallback(
         ({ item }: { item: WHStockDto }) => (
-            <View className="bg-gray pb-2 px-4 border-b border-gray-300 flex flex-row justify-between">
-                <View className="pr-4 flex-1 w-[70%]">
-                    <Text className="text-black text-sm mb-1" numberOfLines={1} ellipsizeMode="tail">
-                        {truncateName(item.name)}
-                    </Text>
+            <View className="bg-gray px-2 py-2 border-b border-gray-300 flex flex-row justify-between items-center w-full">
+                <View className="flex-1 pr-4">
+                    <ExpandableText text={item.name}></ExpandableText>
                 </View>
-                <View className="flex flex-row w-[20%] justify-end">
-                    <Text
-                        className={`${activeCategory === 1 ? 'text-red-600' : 'text-green-600'} font-bold text-sm`}
-                    >
-                        {item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}
+
+                <View className="flex flex-row items-center gap-x-2">
+                    <Text className={`${activeCategory === 1 ? 'text-red-600' : 'text-green-600'} font-bold text-sm`}>
+                        {formatQuantity(item.quantity, item.sellByUnit)}
                     </Text>
                     <Text className="text-black text-sm">{` ${item.unitOfMeasure || 'pcs'}`}</Text>
-                </View>
-                <TouchableOpacity
-                    onPress={() => handleStockInput(item)}
-                    className="flex flex-row justify-center items-center w-[10%] justify-end"
-                >
-                    <PlusCircle height={15} color="#fe6500" />
-                </TouchableOpacity>
 
+                    <View className="flex flex-row gap-x-1">
+                        <TouchableOpacity onPress={() => handleStockInput(item)} className="p-2 rounded-full active:opacity-70">
+                            <PlusCircle height={18} color="#fe6500" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleReturnToSupplier(item)} className="p-2 rounded-full active:opacity-70">
+                            <MinusCircle height={18} color="#fe6500" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
+
         ),
-        [activeCategory, handleStockInput]
+        [activeCategory, handleStockInput, handleReturnToSupplier]
     );
 
 
@@ -170,27 +176,14 @@ const WHScreen = React.memo(() => {
             {user && (
                 <WHSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex bg-gray flex-row justify-between px-2 mb-6">
-                <TouchableOpacity className="mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">WAREHOUSE STOCKS</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
+            <TitleHeaderComponent isParent={true} userName={user?.name || ""} title="Warehouse Stocks" onPress={toggleSidebar}></TitleHeaderComponent>
             <View className="w-full justify-center items-center bg-gray relative">
-                <View className="w-full flex-row justify-between px-24">
+                <View className="w-full flex-row justify-between items-center">
                     {['STOCKS', 'LOW STOCK ITEMS'].map((label, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => handleChangeCategory(index)}
-                            className={`${activeCategory === index ? 'border-b-4 border-yellow-500' : ''} justify-center items-center`}
+                            className={`${activeCategory === index ? 'border-b-4 border-yellow-500' : ''} flex-1 justify-center items-center p-2`}
                         >
                             <View className="flex-row items-center space-x-1">
                                 <Text
@@ -205,7 +198,6 @@ const WHScreen = React.memo(() => {
                                 )}
                             </View>
                         </TouchableOpacity>
-
                     ))}
                 </View>
             </View>

@@ -33,3 +33,13 @@ export type ObjectDto = {
 	id: number;
 	name: string;
 };
+
+export type ReturnToWHDto = {
+	id: number;
+	branchItemId: number;
+	reason: string;
+	quantity: number;
+	date: Date;
+} & {
+	[key: string]: string | number | Date;
+};

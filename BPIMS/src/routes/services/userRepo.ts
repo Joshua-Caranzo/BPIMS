@@ -30,3 +30,12 @@ export async function getBranches() {
 export async function setUserInactive(id: number) {
     return await postToBaseApi('setUserInactive', { id });
 }
+
+export async function setBranchInactive(id: number) {
+    return await putToBaseApi('setBranchInactive', { id });
+}
+
+export async function saveBranch(id: number, name: string) {
+    return await putToBaseApi('saveBranch', { id, name });
+}
+

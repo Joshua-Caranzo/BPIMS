@@ -106,11 +106,25 @@ export function formatShortDateTimePH(dateString: string): string {
 }
 
 export const truncateName = (name: string) => {
-    const maxLength = 15;
+    const maxLength = 25;
     return name && name.length > maxLength ? name.slice(0, maxLength) + "..." : name;
 };
 
 export const truncateShortName = (name: string) => {
     const maxLength = 6;
     return name && name.length > maxLength ? name.slice(0, maxLength) + "..." : name;
+};
+
+
+export function formatQuantity(quantity: number, sellByUnit: boolean): string {
+    const numericQuantity = Number(quantity);
+    return sellByUnit ? Math.round(numericQuantity).toFixed(0) : numericQuantity.toFixed(2);
+}
+
+
+export function formatmmddyyyyDate(date: Date) {
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
 };

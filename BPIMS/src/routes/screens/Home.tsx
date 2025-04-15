@@ -1,20 +1,20 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  View,
-  TextInput,
-  Text,
-  Alert,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-  BackHandler,
-} from 'react-native';
-import { User, Lock } from 'react-native-feather';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  Image,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Lock, User } from 'react-native-feather';
 import { RootStackParamList } from '../navigation/navigation';
-import { getUserDetails, setUserLogIn } from '../utils/auth';
 import { loginUser } from '../services/loginRepo';
+import { getUserDetails, setUserLogIn } from '../utils/auth';
 
 const HomeScreen = React.memo(() => {
   const [username, setUsername] = useState('');
@@ -47,6 +47,9 @@ const HomeScreen = React.memo(() => {
           }
           else if (response.departmentId === 3) {
             navigation.navigate('WarehouseStack')
+          }
+          else if (response.departmentId === 4) {
+            navigation.navigate('CentralStack')
           }
           else {
             setLoading(false)
@@ -85,7 +88,11 @@ const HomeScreen = React.memo(() => {
           navigation.navigate('HeadquarterStack');
         } else if (result.data.departmentId === 3) {
           navigation.navigate('WarehouseStack');
-        } else {
+        }
+        else if (result.data.departmentId === 4) {
+          navigation.navigate('CentralStack');
+        }
+        else {
           navigation.navigate('Home');
         }
       } else {

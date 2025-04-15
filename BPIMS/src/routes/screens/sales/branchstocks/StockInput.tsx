@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Keyboard, ScrollView, ActivityIndicator } from 'react-native';
-import { Camera, ChevronLeft } from 'react-native-feather';
-import DatePicker from 'react-native-date-picker';
-import { BranchStockDto, StockInputDto, StockInputHistoryDto } from '../../../types/stockType';
-import { UserDetails } from '../../../types/userType';
 import { useNavigation } from '@react-navigation/native';
-import { BranchStockParamList } from '../../../navigation/navigation';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { formatTransactionDateOnly, truncateName, truncateShortName } from '../../../utils/dateFormat';
-import { createStockInput, getStockHistory } from '../../../services/stockRepo';
-import NumericKeypad from '../../../../components/NumericKeypad';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import DatePicker from 'react-native-date-picker';
 import FastImage from 'react-native-fast-image';
+import { Camera } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { BranchStockParamList } from '../../../navigation/navigation';
+import { createStockInput } from '../../../services/stockRepo';
+import { BranchStockDto, StockInputDto } from '../../../types/stockType';
+import { UserDetails } from '../../../types/userType';
 
 type Props = NativeStackScreenProps<BranchStockParamList, 'StockInput'>;
 
@@ -18,8 +19,6 @@ export default function StockInputScreen({ route }: Props) {
     const item: BranchStockDto = route.params.item;
     const user: UserDetails = route.params.user;
     const [loading, setLoading] = useState<boolean>(false);
-    const [itemHistory, setItemHistory] = useState<StockInputHistoryDto[]>([]);
-    const [loaderMessage, setLoaderMessage] = useState<string>('Loading Stock Data...');
     const [stockInput, setStockInput] = useState<StockInputDto>();
     const navigation = useNavigation<NativeStackNavigationProp<BranchStockParamList>>();
     const [openDate, setOpenDate] = useState(false);
@@ -45,25 +44,6 @@ export default function StockInputScreen({ route }: Props) {
     useEffect(() => {
         validateForm();
     }, [stockInput]);
-
-    useEffect(() => {
-        getStockInputHistory();
-    }, []);
-
-
-    async function getStockInputHistory() {
-        try {
-            setLoading(true);
-            FastImage.clearMemoryCache();
-            FastImage.clearDiskCache();
-            const response = await getStockHistory(item.id);
-            setItemHistory(response.data);
-            setLoading(false)
-        }
-        finally {
-            setLoading(false)
-        }
-    }
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -139,7 +119,6 @@ export default function StockInputScreen({ route }: Props) {
                 setLoading(true)
                 await createStockInput(stockInput)
                 newStockInput();
-                await getStockInputHistory();
                 setLoading(false)
             }
         }
@@ -224,16 +203,10 @@ export default function StockInputScreen({ route }: Props) {
         <View className="flex flex-1">
             {isInputMode && editingField ? (
                 <View style={{ flex: 1 }}>
-                    <View className='top-3 flex flex-row px-2'>
-                        <TouchableOpacity
-                            className="bg-gray px-1 pb-2 ml-2"
-                            onPress={() => handleBackKeypad(editingField)}
-                        >
-                            <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                        </TouchableOpacity>
-                        <Text className="text-black text-lg font-bold ml-3">Please Enter Quantity</Text>
-                    </View>
-                    <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
+                    <TitleHeaderComponent title={item.name} userName={user?.name || ""} onPress={() => handleBackKeypad(editingField)}
+                        isParent={false}></TitleHeaderComponent>
+
+                    <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
                     <View className="items-center mt-4">
                         <View className="flex flex-column items-center">
                             <Text className="text-lg font-bold text-gray-600 px-3 mt-4">Enter {fieldLabels[editingField ?? 'qty']}
@@ -265,28 +238,12 @@ export default function StockInputScreen({ route }: Props) {
                 </View >
             ) : (
                 <View className="flex flex-1">
-                    <View className='top-3 flex flex-row justify-between px-2'>
-                        <TouchableOpacity
-                            className="bg-gray px-1 pb-2 ml-2"
-                            onPress={() => navigation.push('BranchStock')}
-                        >
-                            <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                        </TouchableOpacity>
-                        <View className='pr-4 flex-1 items-center'>
-                            <Text className="text-black text-lg font-bold mb-1">STOCK INPUTS</Text>
-                        </View>
-                        <View className="items-center">
-                            <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                                <Text className="text-white" style={{ fontSize: 12 }}>
-                                    {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
+                    <TitleHeaderComponent title='Stock Inputs' userName={user?.name || ""} onPress={() => navigation.push('BranchStock')}
+                        isParent={false}></TitleHeaderComponent>
 
-                    <View className="px-4 w-full mt-6">
+                    <View className="px-4 w-full">
                         <View className="w-full flex items-center">
-                            <Text className="text-black text-sm">{truncateName(item.name)}</Text>
+                            <ExpandableText text={item.name}></ExpandableText>
                             <View className="w-full flex items-center mt-2 mb-2">
                                 {item.imagePath ? (
                                     <FastImage source={{
@@ -318,11 +275,11 @@ export default function StockInputScreen({ route }: Props) {
                                         </TouchableOpacity>
                                     </View>
                                     <View className='w-1/2'>
-                                        <Text className="text-red-500 text-sm font-bold">MOQ</Text>
+                                        <Text className="text-red-500 text-sm font-bold">Critical Value</Text>
                                         <View
                                             className="border-b border-gray-400 py-2"
                                         >
-                                            <Text className="text-black">{item.sellByUnit ? item.moq : Number((item.moq || 0)).toFixed(2)}</Text>
+                                            <Text className="text-black">{item.sellByUnit ? item.storeCriticalValue : Number((item.storeCriticalValue || 0)).toFixed(2)}</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -407,33 +364,6 @@ export default function StockInputScreen({ route }: Props) {
                                 </View>
                             </View>
                         )}
-
-                        {loading && (
-                            <ActivityIndicator size={'small'} color={'#fe6500'}></ActivityIndicator>
-                        )}
-                        {itemHistory.length > 0 && (
-                            <View className="flex flex-column mt-2 h-[35vh] md:h-[45vh] lg:h-[55vh] pb-2">
-                                <Text className="text-gray-700 text-sm font-bold">Item History</Text>
-                                <ScrollView className="w-full mb-8 mt-1">
-                                    <View className="flex flex-row justify-between border-b pb-2 mb-2 border-gray-300">
-                                        <Text className="text-black text-xs font-semibold flex-1 text-left">Delivered By</Text>
-                                        <Text className="text-black text-xs font-semibold flex-1 text-center">Amount</Text>
-                                        <Text className="text-black text-xs font-semibold flex-1 text-right">Date</Text>
-                                    </View>
-
-                                    {itemHistory.map((history) => (
-                                        <TouchableOpacity onPress={() => navigation.navigate('StockHistory', { item, user, history })} key={history.id} className="flex flex-row justify-between py-2 border-b border-gray-200">
-                                            <Text className="text-black text-xs flex-1 text-left">{history.deliveredBy}</Text>
-                                            <Text className="text-black text-xs flex-1 text-center">{item.sellByUnit ? Math.round(history.qty) : history.qty}</Text>
-                                            <Text className="text-black text-xs flex-1 text-right">{formatTransactionDateOnly(history.deliveryDate.toString())}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-
-                                </ScrollView>
-
-                            </View>
-                        )
-                        }
                     </View>
                     {!keyboardVisible && (
                         <View className='items-center absolute bottom-0 left-0 right-0 pb-2'>

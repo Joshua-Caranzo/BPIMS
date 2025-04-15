@@ -7,7 +7,8 @@ export type CustomerDto = {
     totalOrderAmount: number;
     branch: string | null;
     fileUrl: string | null;
-    fileName: string | null
+    fileName: string | null;
+    isLoyalty: boolean
 }
 
 export type CustomerListDto = {
@@ -22,6 +23,9 @@ export type OrderHistory = {
     amountReceived: number;
     slipNo: string;
     transactionDate: Date;
+    isVoided: boolean;
+    cashier: string;
+    items: TransactionItemsDto[]
 }
 
 export type CustomerRequest = {
@@ -41,6 +45,7 @@ export type TransactionDto = {
     subTotal: number;
     customerName: string;
     cashier?: string;
+    isVoided: boolean;
 }
 
 export type TransactionItemsDto = {
@@ -56,4 +61,32 @@ export type TransactionItemsDto = {
 export type TransactionRequestDto = {
     transaction: TransactionDto;
     transactionItems: TransactionItemsDto[];
+}
+
+export type LoyaltyCardDto = {
+    id: number;
+    validYear: string;
+    isValid: boolean;
+}
+
+export type LoyaltyStageDto = {
+    id: number;
+    orderId: number;
+    loyaltyCardId: number;
+    itemRewardId: number | null;
+    rewardName: string | null;
+}
+
+export type CurrentCustomerLoyalty = {
+    id: number;
+    customerId: number;
+    stageId: number;
+    orderId: number;
+    isDone: boolean;
+    dateDone: string | null;
+    itemId: number;
+    itemRewardId: number | null;
+    name: string | null;
+    validYear: string;
+    itemName?: string
 }

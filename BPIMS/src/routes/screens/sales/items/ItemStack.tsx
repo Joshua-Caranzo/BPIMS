@@ -1,15 +1,15 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import ItemScreen from "./ItemScreen";
+import React from "react";
 import { ItemStackParamList } from "../../../navigation/navigation";
 import CartScreen from "./CartScreen";
+import CustomerListScreen from "./CustomerListScreen";
 import DeliveryFeeScreen from "./DeliveryFeeScreen";
 import DiscountScreen from "./DiscountScreen";
-import PaymentScreen from "./PaymentScreen";
-import TransactionSreen from "./Transaction";
-import SlipOrderScreen from "./SlipOrder";
-import CustomerListScreen from "./CustomerListScreen";
+import ItemScreen from "./ItemScreen";
 import NewCustomerScreen from "./NewCustomer";
+import PaymentScreen from "./PaymentScreen";
+import SlipOrderScreen from "./SlipOrder";
+import TransactionSreen from "./Transaction";
 
 const ItemStack = createNativeStackNavigator<ItemStackParamList>();
 

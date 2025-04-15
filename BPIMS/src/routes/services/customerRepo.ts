@@ -1,7 +1,8 @@
-import { CallResultDto } from "../types/CallResultDto";
-import { CustomerListDto, CustomerRequest, TransactionRequestDto } from "../types/customerType";
-import { getFromBaseApi, putFormBaseApi, putToBaseApi } from "../utils/apiService";
 import { VITE_MAIN_API } from '@env';
+import { CallResultDto } from "../types/CallResultDto";
+import { CurrentCustomerLoyalty, CustomerListDto, CustomerRequest, LoyaltyCardDto, LoyaltyStageDto, TransactionRequestDto } from "../types/customerType";
+import { ObjectDto } from "../types/userType";
+import { getFromBaseApi, putFormBaseApi, putToBaseApi } from "../utils/apiService";
 
 const baseUrl = VITE_MAIN_API
 
@@ -28,4 +29,40 @@ export async function getCustomerImage(fileName: string) {
 
 export async function getTransactionHistory(transactionId: number) {
     return await getFromBaseApi<CallResultDto<TransactionRequestDto>>('getTransactionHistory', { transactionId });
+}
+
+export async function getLoyaltyCardList() {
+    return await getFromBaseApi<CallResultDto<LoyaltyCardDto[]>>('getLoyaltyCardList');
+}
+
+export async function getLoyaltyStages(cardId: number) {
+    return await getFromBaseApi<CallResultDto<LoyaltyStageDto[]>>('getLoyaltyStages', { cardId });
+}
+
+export async function getRewards() {
+    return await getFromBaseApi<CallResultDto<ObjectDto[]>>('getRewards');
+}
+
+export async function saveRewards(id: number, name: string) {
+    return await putToBaseApi('saveItemsReward', { id, name });
+}
+
+export async function saveLoyaltyCard(card: LoyaltyCardDto) {
+    return await putToBaseApi('saveLoyaltyCard', { card });
+}
+
+export async function saveLoyaltyStage(stage: LoyaltyStageDto) {
+    return await putToBaseApi('saveLoyaltyStage', { stage });
+}
+
+export async function saveLoyaltyCustomer(customerId: number) {
+    return await putToBaseApi('saveLoyaltyCustomer', { customerId });
+}
+
+export async function markStageDone(loyaltyCustomerId: number, itemId: number) {
+    return await putToBaseApi('markStageDone', { loyaltyCustomerId, itemId });
+}
+
+export async function getCurrentLoyaltyCustomer(customerId: number) {
+    return await getFromBaseApi<CallResultDto<CurrentCustomerLoyalty[]>>('getCustomerLoyalty', { customerId });
 }

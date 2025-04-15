@@ -1,22 +1,23 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    ScrollView,
-    Text,
-    ActivityIndicator
-} from 'react-native';
-import { CustomerListDto } from '../../../types/customerType';
-import { getUserDetails } from '../../../utils/auth';
-import { getCustomerList } from '../../../services/customerRepo';
-import Sidebar from '../../../../components/Sidebar';
-import { UserDetails } from '../../../types/userType';
-import { ChevronRight, Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { ChevronRight, PlusCircle, Search } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
+import Sidebar from '../../../../components/Sidebar';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { CustomerStackParamList } from '../../../navigation/navigation';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { getCustomerList } from '../../../services/customerRepo';
+import { CustomerListDto } from '../../../types/customerType';
+import { UserDetails } from '../../../types/userType';
+import { getUserDetails } from '../../../utils/auth';
 
 const CustomerScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -76,20 +77,8 @@ const CustomerScreen = React.memo(() => {
             {user && (
                 <Sidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex flex-row justify-between px-2">
-                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">CUSTOMERS</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="justify-center items-center bg-gray relative mt-4 mb-6">
+            <TitleHeaderComponent title='CUSTOMERS' userName={user?.name || ""} onPress={toggleSidebar} isParent={true}></TitleHeaderComponent>
+            <View className="justify-center items-center bg-gray relative mb-6">
                 <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 justify-between items-center">
                     <View className="flex-row items-center rounded-md px-2 flex-1">
                         <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
@@ -123,7 +112,7 @@ const CustomerScreen = React.memo(() => {
                                 onPress={() => handleViewCustomer(customer.id, customer.name)}
                                 className="bg-gray py-2 px-4 border-b border-gray-300 flex flex-row justify-between"
                             >
-                                <Text className="text-black text-base">{truncateName(customer.name)}</Text>
+                                <ExpandableText text={customer.name}></ExpandableText>
                                 <View className="px-2">
                                     <ChevronRight color="#fe6500" height={20} width={20} />
                                 </View>

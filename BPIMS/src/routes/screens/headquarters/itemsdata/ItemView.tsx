@@ -1,31 +1,31 @@
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    TextInput,
-    Keyboard,
-    Modal,
-    FlatList,
-    Alert,
-    Switch,
     ActivityIndicator,
+    Alert,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import { CategoryDto } from '../../../types/salesType';
-import { ChevronLeft, Camera, XCircle, Trash2 } from "react-native-feather";
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ItemsHQParamList } from '../../../navigation/navigation';
-import { deleteItem, getCategoriesHQ, getProductHQ, saveItem } from '../../../services/itemsHQRepo';
-import { ItemHQDto } from '../../../types/itemType';
-import NumericKeypad from '../../../../components/NumericKeypad';
-import { formatPrice, truncateName } from '../../../utils/dateFormat';
-import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
 import FastImage from 'react-native-fast-image';
+import { Camera } from "react-native-feather";
 import RNFS from 'react-native-fs';
+import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import SelectModal from '../../../../components/SelectModal';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { ItemsHQParamList } from '../../../navigation/navigation';
+import { deleteItem, getCategoriesHQ, saveItem } from '../../../services/itemsHQRepo';
+import { ItemHQDto } from '../../../types/itemType';
+import { CategoryDto } from '../../../types/salesType';
+import { formatPrice } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<ItemsHQParamList, 'ItemView'>;
 
@@ -51,8 +51,8 @@ const ItemViewScreen = ({ route }: Props) => {
         price: 'Selling Price',
         cost: 'Cost Price',
         category: 'Category',
-        moq: 'MOQ',
-        criticalValue: 'Critical Value',
+        whCriticalValue: 'Warehouse Critical Value',
+        storeCriticalValue: 'Store Critical Value',
         unitOfMeasure: 'Unit of Measure',
         sellByUnit: 'Sell By Unit'
     };
@@ -74,10 +74,10 @@ const ItemViewScreen = ({ route }: Props) => {
                     isManaged: false,
                     imagePath: null,
                     sellByUnit: false,
-                    moq: 0.00,
+                    whCriticalValue: 0.00,
                     categoryName: "",
                     unitOfMeasure: "",
-                    criticalValue: 0.00,
+                    storeCriticalValue: 0.00,
                     imageUrl: null
                 };
                 setEditingItem(newItem);
@@ -100,7 +100,22 @@ const ItemViewScreen = ({ route }: Props) => {
     useEffect(() => {
         const fetchCategories = async () => {
             const result = await getCategoriesHQ();
-            setCategories(result.data);
+            let categoryData = [...result.data];
+
+            const noCategoryIndex = categoryData.findIndex(c => c.id === 0);
+            if (noCategoryIndex !== -1) {
+                categoryData[noCategoryIndex] = {
+                    ...categoryData[noCategoryIndex],
+                    name: "(No Category)"
+                };
+            } else {
+                categoryData.unshift({
+                    id: 0,
+                    name: "(No Category)"
+                });
+            }
+
+            setCategories(categoryData);
         };
         fetchCategories();
     }, []);
@@ -126,11 +141,10 @@ const ItemViewScreen = ({ route }: Props) => {
     const validateForm = useCallback(() => {
         const isFormValid = (
             editingItem?.name !== "" &&
-            editingItem?.categoryId !== 0 &&
             editingItem?.price !== 0 &&
             editingItem?.cost !== 0 &&
-            editingItem.criticalValue !== 0 &&
-            editingItem.moq !== 0 &&
+            editingItem.storeCriticalValue !== 0 &&
+            editingItem.whCriticalValue !== 0 &&
             editingItem.unitOfMeasure !== null &&
             editingItem.unitOfMeasure !== ""
         );
@@ -235,20 +249,20 @@ const ItemViewScreen = ({ route }: Props) => {
             ...prevItem ?? {
                 id: 0,
                 name: "",
-                categoryId: 1,
+                categoryId: 0,
                 price: 0,
                 cost: 0,
                 isManaged: false,
                 imagePath: null,
                 sellByUnit: false,
-                moq: 0,
+                whCriticalValue: 0,
                 categoryName: "",
                 unitOfMeasure: "",
-                criticalValue: 0
+                storeCriticalValue: 0
             },
             [key]: value,
-            moq: 0,
-            criticalValue: 0
+            storeCriticalValue: 0,
+            whCriticalValue: 0
         }));
     }, []);
 
@@ -314,8 +328,8 @@ const ItemViewScreen = ({ route }: Props) => {
                     imagePath: null,
                     imageUrl: null,
                     sellByUnit: false,
-                    moq: 0,
-                    criticalValue: 0,
+                    whCriticalValue: 0,
+                    storeCriticalValue: 0,
                     unitOfMeasure: "",
                 },
                 [field]: lastSavedValue,
@@ -325,40 +339,11 @@ const ItemViewScreen = ({ route }: Props) => {
         setEditingField(null);
     };
 
-    const closeModal = useCallback(() => setOpenCategories(false), []);
-
-    const renderModal = useCallback((data: CategoryDto[]) => (
-        <Modal transparent visible={openCategories} animationType="slide">
-            <View className="flex-1 justify-center items-center bg-black/50">
-                <View className="bg-white p-5 rounded-lg w-4/5 relative">
-                    <TouchableOpacity className="absolute top-2 right-2 p-1" onPress={closeModal}>
-                        <XCircle width={24} height={24} />
-                    </TouchableOpacity>
-
-                    <Text className="text-lg font-bold mb-2 text-center">
-                        Select Category
-                    </Text>
-
-                    <FlatList
-                        data={data.filter(item => item.id !== 0)}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                className="p-3 border-b border-gray-200"
-                                onPress={() => {
-                                    handleChange('categoryId', item.id);
-                                    handleChange('categoryName', item.name);
-                                    closeModal();
-                                }}
-                            >
-                                <Text className="text-base">{item.name}</Text>
-                            </TouchableOpacity>
-                        )}
-                    />
-                </View>
-            </View>
-        </Modal>
-    ), [openCategories, closeModal, handleChange]);
+    const handleSelectCategory = (item: { id: number; name: string }) => {
+        handleChange('categoryId', item.id);
+        handleChange('categoryName', item.name);
+        setOpenCategories(false);
+    };
 
     return (
         <KeyboardAvoidingView
@@ -374,16 +359,11 @@ const ItemViewScreen = ({ route }: Props) => {
                 <View className="flex flex-1">
                     {isInputMode && editingField ? (
                         <View style={{ flex: 1 }}>
-                            <View className='top-3 flex flex-row px-2'>
-                                <TouchableOpacity
-                                    className="bg-gray px-1 pb-2 ml-2"
-                                    onPress={() => handleBackKeypad(editingField)}
-                                >
-                                    <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                                </TouchableOpacity>
-                                <Text className="text-black text-lg font-bold ml-3">Please Enter Quantity</Text>
-                            </View>
-                            <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
+                            <TitleHeaderComponent isParent={false}
+                                userName={""}
+                                title="Please Enter Quantity" onPress={() => handleBackKeypad(editingField)}
+                            ></TitleHeaderComponent>
+                            <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
                             <View className="items-center mt-4">
                                 <View className="flex flex-column items-center">
                                     <Text className="text-lg font-bold text-gray-600 px-3 mt-4">Enter {fieldLabels[editingField ?? 'qty']}
@@ -415,31 +395,20 @@ const ItemViewScreen = ({ route }: Props) => {
                         </View>
                     ) : (
                         <View className="flex flex-1">
-                            <View className='top-3 flex flex-row justify-between px-2'>
-                                <TouchableOpacity
-                                    className="bg-gray px-1 pb-2 ml-2"
-                                    onPress={() => navigation.push('Items')}
-                                >
-                                    <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                                </TouchableOpacity>
-                                <View className='pr-4 flex-1 items-center'>
-                                    <Text className="text-black text-lg font-bold mb-1">ITEMS DATA</Text>
-                                </View>
-                                {item && item.id != 0 && (
-                                    <View>
-                                        <TouchableOpacity
-                                            onPress={() => removeItem(item.id)}
-                                            className="rounded-full w-6 h-6 flex items-center justify-center mr-2"
-                                        >
-                                            <Trash2 height={20} width={20} />
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
+                            <TitleHeaderComponent isParent={false}
+                                userName=""
+                                showTrash={item && item.id !== 0}
+                                onTrashPress={() => {
+                                    if (item && item.id !== 0) {
+                                        removeItem(item.id);
+                                    }
+                                }}
+                                title="Items Data" onPress={() => navigation.push('Items')}
+                            ></TitleHeaderComponent>
 
-                            <View className="px-4 w-full mt-6">
+                            <View className="px-4 w-full">
                                 <View className="w-full flex items-center">
-                                    <Text className="text-black text-sm">{truncateName(editingItem.name.toUpperCase())}</Text>
+                                    <Text className="text-black text-sm">{editingItem.name.toUpperCase()}</Text>
                                     <TouchableOpacity className='w-full mt-2 items-center' onPress={handleImageSelect}>
 
                                         {fileUrl ? (
@@ -509,11 +478,15 @@ const ItemViewScreen = ({ route }: Props) => {
                                                 <TouchableOpacity
                                                     className="border-b border-gray-400 py-2"
                                                     onPress={() => setOpenCategories(true)}
-
                                                 >
-                                                    <Text className={`${editingItem.categoryId ? 'text-black' : 'text-gray-500'} ml-1`}>{editingItem.categoryName || 'Select Category'}</Text>
+                                                    <Text className={`text-black ml-1`}>
+                                                        {editingItem.categoryId === 0 || !categories.some(cat => cat.id === editingItem.categoryId)
+                                                            ? "(No Category)"
+                                                            : editingItem.categoryName}
+                                                    </Text>
                                                 </TouchableOpacity>
                                             </View>
+
 
                                         </View>
                                         <View className='flex flex-row w-full gap-2'>
@@ -530,29 +503,29 @@ const ItemViewScreen = ({ route }: Props) => {
                                         </View>
                                         <View className='flex flex-row w-full gap-2'>
                                             <View className='w-1/2'>
-                                                <Text className="text-red-500 text-sm font-bold">MOQ</Text>
+                                                <Text className="text-red-500 text-sm font-bold">Store Critical Value</Text>
                                                 <TouchableOpacity
                                                     className="border-b border-gray-400 py-2"
                                                     onPress={() => {
-                                                        setEditingField('moq');
+                                                        setEditingField('storeCriticalValue');
                                                         setInputMode(true);
-                                                        setLastSavedValue(Number(editingItem.moq));
+                                                        setLastSavedValue(Number(editingItem.storeCriticalValue));
                                                     }}
                                                 >
-                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.moq) || 0 : formatPrice(editingItem.moq || 0)}</Text>
+                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.storeCriticalValue) || 0 : formatPrice(editingItem.storeCriticalValue || 0)}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             <View className='w-1/2'>
-                                                <Text className="text-red-500 text-sm font-bold">Critical Value</Text>
+                                                <Text className="text-red-500 text-sm font-bold">Warehouse Critical Value</Text>
                                                 <TouchableOpacity
                                                     className="border-b border-gray-400 py-2"
                                                     onPress={() => {
-                                                        setEditingField('criticalValue');
+                                                        setEditingField('whCriticalValue');
                                                         setInputMode(true);
-                                                        setLastSavedValue(Number(editingItem.criticalValue));
+                                                        setLastSavedValue(Number(editingItem.whCriticalValue));
                                                     }}
                                                 >
-                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.criticalValue) || 0 : formatPrice(editingItem.criticalValue || 0)}</Text>
+                                                    <Text className="text-black">{editingItem.sellByUnit ? Math.round(editingItem.whCriticalValue) || 0 : formatPrice(editingItem.whCriticalValue || 0)}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
@@ -594,13 +567,22 @@ const ItemViewScreen = ({ route }: Props) => {
                                             <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
                                         )}
                                     </TouchableOpacity>
+
+                                    <SelectModal
+                                        visible={openCategories}
+                                        onClose={() => setOpenCategories(false)}
+                                        onSelect={handleSelectCategory}
+                                        items={categories}
+                                        keyExtractor={(item) => item.id.toString()}
+                                        labelExtractor={(item) => item.name}
+                                        title='SELECT CATEGORIES'
+                                    />
                                 </View>
                             )
                             }
                         </View >
                     )
                     }
-                    {renderModal(categories)}
                 </View >
             </ScrollView>
         </KeyboardAvoidingView>

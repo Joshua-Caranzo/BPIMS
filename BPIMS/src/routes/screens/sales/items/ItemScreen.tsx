@@ -1,20 +1,21 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Alert, TouchableOpacity, Dimensions, TextInput, Keyboard, ActivityIndicator, BackHandler } from 'react-native';
-import { CartItems, CategoryDto, ItemDto } from '../../../types/salesType';
-import { addItemToCart, getCart, getCategories, getProducts } from '../../../services/salesRepo';
-import { ChevronRight, Search, Menu, Slash, ChevronLeft } from "react-native-feather";
-import { getUserDetails } from '../../../utils/auth';
-import { UserDetails } from '../../../types/userType';
-import Sidebar from '../../../../components/Sidebar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ItemStackParamList } from '../../../navigation/navigation';
-import { OptimizedFlatList } from 'react-native-optimized-flatlist';
-import NumericKeypad from '../../../../components/NumericKeypad';
-import { debounce, truncate } from 'lodash';
+import { debounce } from 'lodash';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, BackHandler, Dimensions, Easing, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import FastImage from 'react-native-fast-image';
-import { Animated, Easing } from 'react-native';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { ChevronRight, Menu, Search, Slash } from "react-native-feather";
+import { OptimizedFlatList } from 'react-native-optimized-flatlist';
+import ExpandableText from '../../../../components/ExpandableText';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import Sidebar from '../../../../components/Sidebar';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { ItemStackParamList } from '../../../navigation/navigation';
+import { addItemToCart, getCart, getCategories, getProducts } from '../../../services/salesRepo';
+import { CartItems, CategoryDto, ItemDto } from '../../../types/salesType';
+import { UserDetails } from '../../../types/userType';
+import { getUserDetails } from '../../../utils/auth';
+import { truncateShortName } from '../../../utils/dateFormat';
 
 const ItemScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -350,10 +351,9 @@ const ItemScreen = () => {
                             )}
                         </View>
 
-                        <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
-                            <Text className="text-xs font-bold">
-                                {truncateName(item.name.toUpperCase())}
-                            </Text>
+                        <View className="bg-yellow-500 w-full rounded-b-lg p-2 justify-between">
+                            <ExpandableText text={item.name.toUpperCase()}></ExpandableText>
+
                             <Text className="text-xs font-bold mb-1" numberOfLines={1}>
                                 ₱ {item.price}
                             </Text>
@@ -384,9 +384,7 @@ const ItemScreen = () => {
                         </View>
 
                         <View className="bg-yellow-500 w-full h-14 rounded-b-lg p-2 justify-between">
-                            <Text className="text-xs font-bold">
-                                {truncateName(item.name.toUpperCase())}
-                            </Text>
+                            <ExpandableText text={item.name}></ExpandableText>
                             <Text className="text-xs font-bold mb-1" numberOfLines={1}>
                                 ₱ {item.price}
                             </Text>
@@ -430,16 +428,11 @@ const ItemScreen = () => {
             )}
 
             <View style={{ flex: 1, display: isInputMode ? 'flex' : 'none' }}>
-                <View className='top-3 flex flex-row px-2'>
-                    <TouchableOpacity
-                        className="bg-gray px-1 pb-2 ml-2"
-                        onPress={() => setInputMode(false)}
-                    >
-                        <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                    </TouchableOpacity>
-                    <Text className="text-black text-lg font-bold ml-3">Please Enter Quantity</Text>
-                </View>
-                <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
+                <TitleHeaderComponent isParent={false} title={selectedItem?.name || ""} onPress={() => {
+                    setInputMode(false);
+                    setMessage("")
+                }} userName=''></TitleHeaderComponent>
+                <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
                 <View className="items-center mt-4">
                     <View className="flex flex-column items-center">
                         <Text className="text-lg font-bold text-gray-600 px-3 mt-4">Enter Quantity Sold</Text>
@@ -512,12 +505,12 @@ const ItemScreen = () => {
                     {loadingCategory ? (
                         <ActivityIndicator size="small" color="#fe6500" />
                     ) : (
-                        <View className="w-[90%] flex-row justify-between pr-4 pl-4">
+                        <View className="w-[90%] flex-row justify-between pr-2 pl-2">
                             {categories.map((category) => (
                                 <TouchableOpacity
                                     onPress={() => handleCategoryClick(category.id)}
                                     key={category.id}
-                                    className="rounded-full mx-1"
+                                    className={`${activeCategory === category.id ? 'border-b-4 border-yellow-500' : ''}  mx-1`}
                                 >
                                     <Text className={`${activeCategory === category.id ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium`}>
                                         {category.name.toUpperCase()}

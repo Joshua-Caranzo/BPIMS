@@ -1,23 +1,24 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    Text,
-    FlatList,
-    ActivityIndicator,
-} from 'react-native';
-import { Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getUserDetails } from '../../../utils/auth';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { MinusCircle, PlusCircle, Repeat, Search } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
 import Sidebar from '../../../../components/Sidebar';
-import { UserDetails } from '../../../types/userType';
-import { BranchStockDto } from '../../../types/stockType';
-import { getBranchStocks } from '../../../services/stockRepo';
-import { getSocketData } from '../../../utils/apiService';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { BranchStockParamList } from '../../../navigation/navigation';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { getBranchStocks } from '../../../services/stockRepo';
+import { BranchStockDto } from '../../../types/stockType';
+import { UserDetails } from '../../../types/userType';
+import { getSocketData } from '../../../utils/apiService';
+import { getUserDetails } from '../../../utils/auth';
 
 const BranchStockScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -127,55 +128,88 @@ const BranchStockScreen = React.memo(() => {
         }
     }, [user, navigation]);
 
+    const handleStockTransfer = useCallback((item: BranchStockDto) => {
+        if (user) {
+            navigation.navigate('StockTransfer', { item, user });
+        }
+    }, [user, navigation]);
+
+    const handleReturnStock = useCallback((item: BranchStockDto) => {
+        if (user) {
+            navigation.navigate('ReturnStock', { item, user });
+        }
+    }, [user, navigation]);
+
     const renderItem = useCallback(
         ({ item }: { item: BranchStockDto }) => (
-            <View className="bg-gray pb-2 px-4 border-b border-gray-300 flex flex-row justify-between">
-                <View className="pr-4 flex-1 w-[70%]">
-                    <Text className="text-black text-sm mb-1" numberOfLines={1} ellipsizeMode="tail">
-                        {truncateName(item.name)}
-                    </Text>
+            <View className="bg-white rounded-lg mb-3 mx-2 px-4 py-3">
+                <View className="flex-col justify-between">
+                    <View className=" flex flex-row justify-between items-center text-center">
+                        <View className="flex-1 pr-2">
+                            <ExpandableText text={item.name} />
+                        </View>
+                        <View className='flex flex-row text-end'>
+                            <Text
+                                className={`${activeCategory === 1 ? 'text-red-600' : 'text-green-600'} font-bold text-sm`}
+                            >
+                                {item.sellByUnit
+                                    ? Math.round(Number(item.quantity)).toFixed(0)
+                                    : Number(item.quantity).toFixed(2)}
+                            </Text>
+                            <Text className="text-black text-sm ml-1">
+                                {` ${item.unitOfMeasure || 'pcs'}`}
+                            </Text>
+                        </View>
+                    </View>
+
+
+                    <View className="flex-row justify-end sm:justify-end space-x-3">
+                        {/* Buttons */}
+                        {activeCategory !== 0 && (
+                            <View className="flex-row space-x-3">
+                                {(activeCategory === 1 || activeCategory === 2) && (
+                                    <TouchableOpacity className="p-2 bg-orange-50 rounded-full"
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+
+                                        onPress={() => handleStockInput(item)}>
+                                        <PlusCircle height={18} color="#fe6500" />
+                                    </TouchableOpacity>
+                                )}
+
+                                {activeCategory === 2 && (
+                                    <>
+                                        <TouchableOpacity className="p-2 bg-orange-50 rounded-full ml-4 mr-4"
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            onPress={() => handleStockTransfer(item)}>
+                                            <Repeat height={18} color="#fe6500" />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity className="p-2 bg-orange-50 rounded-full"
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            onPress={() => handleReturnStock(item)}>
+                                            <MinusCircle height={18} color="#fe6500" />
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </View>
+                        )}
+                    </View>
                 </View>
-                <View className="flex flex-row w-[20%] justify-end">
-                    <Text
-                        className={`${activeCategory === 1 ? 'text-red-600' : 'text-green-600'} font-bold text-sm`}
-                    >
-                        {item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}
-                    </Text>
-                    <Text className="text-black text-sm">{` ${item.unitOfMeasure || 'pcs'}`}</Text>
-                </View>
-                {(activeCategory === 1 || activeCategory === 2) && (
-                    <TouchableOpacity
-                        onPress={() => handleStockInput(item)}
-                        className="flex flex-row justify-center items-center w-[10%] justify-end"
-                    >
-                        <PlusCircle height={15} color="#fe6500" />
-                    </TouchableOpacity>
-                )}
             </View>
         ),
         [activeCategory, handleStockInput]
     );
+
+
 
     return (
         <View style={{ flex: 1 }}>
             {user && (
                 <Sidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex flex-row justify-between px-2 mb-6">
-                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">BRANCH STOCKS</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
+            <TitleHeaderComponent title='Branch Stocks' userName={user?.name || ""} onPress={toggleSidebar} isParent={true}></TitleHeaderComponent>
+
             <View className="w-full justify-center items-center bg-gray relative">
-                <View className="w-full flex-row justify-between px-2">
+                <View className="w-full flex-row justify-between items-center">
                     {['STOCKS', 'LOW STOCK ITEMS', 'STOCK INPUTS'].map((label, index) => (
                         <TouchableOpacity
                             key={index}
@@ -196,7 +230,6 @@ const BranchStockScreen = React.memo(() => {
                             </View>
                             {index === 2 && <PlusCircle height={13} color="#fe6500" />}
                         </TouchableOpacity>
-
                     ))}
                 </View>
             </View>

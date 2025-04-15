@@ -1,5 +1,5 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 import { UsersHQParamList } from "../../../navigation/navigation";
 import UserListScreen from "./UserListScreen";
 import UserViewScreen from "./UserViewScreen";
