@@ -1,10 +1,11 @@
 import { CallResultDto } from "../types/CallResultDto";
+import { WHItemStock } from "../types/stockType";
 import { ObjectDto } from "../types/userType";
-import { SupplierDto, WHStockDto, WHStockInputDto, WHStockInputHistoryDto } from "../types/whType";
+import { ReturnToStockDto, SupplierDto, WHStockDto, WHStockInputDto, WHStockInputHistoryDto } from "../types/whType";
 import { getFromBaseApi, postToBaseApi } from "../utils/apiService";
 
-export async function getWHStocks(categoryId: number, page: number, search: string, branchId: number) {
-    return await getFromBaseApi<CallResultDto<WHStockDto[]>>('getWHStocks', { categoryId, page, search, branchId });
+export async function getWHStocks(categoryId: number, page: number, search: string) {
+    return await getFromBaseApi<CallResultDto<WHStockDto[]>>('getWHStocks', { categoryId, page, search });
 }
 
 export async function getWHStockHistory(itemId: number) {
@@ -33,4 +34,16 @@ export async function saveSupplier(supplier: SupplierDto) {
 
 export async function removeSupplier(id: number) {
     return await postToBaseApi<CallResultDto<object>>('removeSupplier', { id });
+}
+
+export async function getWHStocksMonitor(categoryId: number, page: number, search: string) {
+    return await getFromBaseApi<CallResultDto<WHItemStock[]>>('getWHStocksMonitor', { categoryId, page, search });
+}
+
+export async function getReturnToStockHistory(whItemId: number) {
+    return await getFromBaseApi<CallResultDto<ReturnToStockDto[]>>('getReturnToStockHistory', { whItemId });
+}
+
+export async function returnToSupplier(returnStock: ReturnToStockDto) {
+    return await postToBaseApi<CallResultDto<ReturnToStockDto[]>>('returnToSupplier', { returnStock });
 }

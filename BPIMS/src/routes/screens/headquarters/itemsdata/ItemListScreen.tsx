@@ -1,18 +1,19 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Alert, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { CategoryDto } from '../../../types/salesType';
-import { Search, Menu, PlusCircle } from "react-native-feather";
-import { getUserDetails } from '../../../utils/auth';
-import { UserDetails } from '../../../types/userType';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ItemsHQParamList } from '../../../navigation/navigation';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import FastImage from 'react-native-fast-image';
+import { PlusCircle, Search } from "react-native-feather";
 import { OptimizedFlatList } from 'react-native-optimized-flatlist';
+import ExpandableText from '../../../../components/ExpandableText';
+import HQSidebar from '../../../../components/HQSidebar';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { ItemsHQParamList } from '../../../navigation/navigation';
 import { getCategoriesHQ, getProductsHQ } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
-import HQSidebar from '../../../../components/HQSidebar';
-import FastImage from 'react-native-fast-image';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { CategoryDto } from '../../../types/salesType';
+import { UserDetails } from '../../../types/userType';
+import { getUserDetails } from '../../../utils/auth';
 
 const ItemListScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -39,10 +40,10 @@ const ItemListScreen = () => {
         isManaged: false,
         imagePath: null,
         sellByUnit: false,
-        moq: 0,
+        whCriticalValue: 0,
         categoryName: "",
         unitOfMeasure: "",
-        criticalValue: 0,
+        storeCriticalValue: 0,
         imageUrl: null
     };
 
@@ -132,26 +133,38 @@ const ItemListScreen = () => {
     };
 
     const ProductItem = React.memo(({ item }: { item: ItemHQDto }) => (
-        <TouchableOpacity
-            className={`m-1 w-full pl-1 pr-3`}
-            onPress={() => navigation.navigate('ItemView', { item: item })}
-        >
-            <View className="w-full items-center border-b border-gray-500 w-full pl-1 pr-2 justify-between flex flex-row">
-                <View className=" w-[20%] bg-yellow-500 justify-center items-center h-10 w-16 mb-1 rounded-lg">
-                    {item.imagePath ? (
-                        <FastImage
-                            source={{ uri: item.imagePath, priority: FastImage.priority.high }}
-                            style={{ width: 64, height: 40, borderRadius: 8 }}
-                            resizeMode={FastImage.resizeMode.cover}
-                        />
-                    ) : (
-                        <Text className="text-white text-xs text-center">No Image</Text>
-                    )}
+        <View className="mt-2 w-full pl-1 pr-3">
+            <TouchableOpacity
+                className="w-full"
+                onPress={() => navigation.navigate('ItemView', { item })}
+                activeOpacity={0.7}
+            >
+                <View
+                    className="flex-row items-center border-b border-gray-500 pb-2 pl-1 pr-2 justify-between"
+                    pointerEvents="none"
+                >
+                    <View className="bg-yellow-500 justify-center items-center h-10 w-16 rounded-lg">
+                        {item.imagePath ? (
+                            <FastImage
+                                source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                style={{ width: 64, height: 40, borderRadius: 8 }}
+                                resizeMode={FastImage.resizeMode.cover}
+                            />
+                        ) : (
+                            <Text className="text-black text-xs text-center">No Image</Text>
+                        )}
+                    </View>
+
+                    <View className="flex-1 ml-2">
+                        <ExpandableText text={item.name}></ExpandableText>
+                    </View>
+
+                    <Text className="text-black text-sm" numberOfLines={1}>
+                        ₱ {item.price}
+                    </Text>
                 </View>
-                <Text className="w-[60%] text-xs font-bold text-start ml-1 mr-1">{truncateName(item.name.toUpperCase())}</Text>
-                <Text className=" w-[20%] text-xs font-bold mb-1 text-right" numberOfLines={1}>₱ {item.price}</Text>
-            </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+        </View>
     ));
 
     const renderItem = useCallback(({ item }: { item: ItemHQDto }) => <ProductItem item={item} />, []);
@@ -162,39 +175,27 @@ const ItemListScreen = () => {
             {isSidebarVisible && (
                 <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
+            <TitleHeaderComponent isParent={true} userName={user?.name || ""} title="Items Data" onPress={toggleSidebar}></TitleHeaderComponent>
 
-            <View className="top-3 flex flex-row justify-between px-2 mb-3">
-                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">ITEMS DATA</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="justify-center items-center bg-gray relative mt-1">
+            <View className="w-full justify-center items-center bg-gray relative">
                 {loadingCategory ? (
                     <ActivityIndicator size="small" color="#fe6500" />
                 ) : (
-                    <View className="w-[90%] flex-row justify-between pr-4 pl-4">
+                    <View className="w-full flex-row justify-between items-center">
                         {categories.map((category) => (
                             <TouchableOpacity
                                 onPress={() => handleCategoryClick(category.id)}
                                 key={category.id}
-                                className="rounded-full mx-1"
+                                className={`${activeCategory === category.id ? 'border-b-4 border-yellow-500' : ''} flex-1 justify-center items-center p-2`}
                             >
-                                <Text className={`${activeCategory === category.id ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium`}>
+                                <Text className={`${activeCategory === category.id ? 'text-gray-900' : 'text-gray-500'} text-[9px] font-medium text-center`}>
                                     {category.name.toUpperCase()}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
                 )}
-                <View className="w-full h-[2px] bg-gray-500 mt-1"></View>
+                <View className="w-full h-[2px] bg-gray-500"></View>
             </View>
             <View className="flex-1 items-center">
                 <View className="flex flex-row w-full bg-gray-300 py-1 px-3 justify-between items-center">

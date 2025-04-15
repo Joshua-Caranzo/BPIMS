@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -6,21 +8,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Cart, CartItems } from '../../../types/salesType';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Trash2 } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { ItemStackParamList } from '../../../navigation/navigation';
-import { ChevronLeft, Trash2 } from 'react-native-feather';
 import {
   deleteAllCartItems,
   getCart,
-  updateItemQuantity,
+  removeCartItem,
   updateDeliveryFee,
   updateDiscount,
-  removeCartItem,
+  updateItemQuantity,
 } from '../../../services/salesRepo';
-import NumericKeypad from '../../../../components/NumericKeypad';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { Cart, CartItems } from '../../../types/salesType';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'Cart'>;
 
@@ -213,26 +214,9 @@ const CartScreen = React.memo(({ route }: Props) => {
   if (isInputMode) {
     return (
       <View style={{ flex: 1 }}>
-        <View className="top-3 flex flex-row px-2 w-full items-center">
-          <TouchableOpacity
-            className="bg-gray px-1 pb-2 ml-2"
-            onPress={() => setInputMode(false)}
-          >
-            <ChevronLeft height={28} width={28} color="#fe6500" />
-          </TouchableOpacity>
+        <TitleHeaderComponent isParent={false} title={selectedItem?.name || ""} onPress={() => setInputMode(false)} userName=''></TitleHeaderComponent>
 
-          <View className="pr-4 flex-1 items-center">
-            <Text
-              className="text-black text-lg font-bold mb-1"
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {selectedItem?.name}
-            </Text>
-          </View>
-        </View>
-
-        <View className="w-full h-[2px] bg-gray-500 mt-3 mb-2"></View>
+        <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
         <View className="items-center mt-4">
           <View className="flex flex-column items-center">
             <Text className="text-lg font-bold text-gray-600 px-3 mt-4">
@@ -291,23 +275,9 @@ const CartScreen = React.memo(({ route }: Props) => {
 
   return (
     <View className="flex flex-1 h-[100%]">
-      <View className="top-3 flex flex-row justify-between px-2">
-        <TouchableOpacity
-          className="bg-gray px-1 pb-2 ml-2"
-          onPress={() => navigation.navigate('Item')}
-        >
-          <ChevronLeft height={28} width={28} color="#fe6500" />
-        </TouchableOpacity>
-        <Text className="text-black text-lg font-bold">CART</Text>
-        <View className="items-center mr-2">
-          <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-            <Text className="text-white" style={{ fontSize: 12 }}>
-              {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-            </Text>
-          </View>
-        </View>
-      </View>
-      <View className="w-full h-[2px] bg-gray-500 mt-2 mb-2"></View>
+      <TitleHeaderComponent title='Cart' isParent={false} userName={user.name} onPress={() => navigation.navigate('Item')}></TitleHeaderComponent>
+
+      <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
       {loading ? (
         <View className="py-2">
           <ActivityIndicator size="small" color="#fe6500" />
@@ -334,9 +304,7 @@ const CartScreen = React.memo(({ route }: Props) => {
                         </TouchableOpacity>
 
                         <View className="flex-column items-start justify-between w-[60%]">
-                          <Text className="text-sm text-gray-800 overflow-ellipsis overflow-hidden whitespace-nowrap">
-                            {truncateName(cartItem.name)}
-                          </Text>
+                          <ExpandableText text={cartItem.name}></ExpandableText>
                           <Text className="text-xs text-gray-600">₱ {cartItem.price}</Text>
                         </View>
                         <View className="w-[25%]">

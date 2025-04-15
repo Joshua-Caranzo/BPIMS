@@ -1,24 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    TextInput,
+    ActivityIndicator,
     Alert,
     Keyboard,
     ScrollView,
-    ActivityIndicator,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SupplierParamList } from '../../../navigation/navigation';
-import { useNavigation } from '@react-navigation/native';
-import { launchImageLibrary, launchCamera, CameraOptions, ImageLibraryOptions, MediaType } from 'react-native-image-picker';
-import { ChevronLeft, Trash2 } from 'react-native-feather';
-import { formatTransactionDateOnly, truncateName } from '../../../utils/dateFormat';
 import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
-import { SupplierDto, WHStockInputHistoryDto } from '../../../types/whType';
+import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { SupplierParamList } from '../../../navigation/navigation';
 import { getSupplier, getSupplierStockHistory, removeSupplier, saveSupplier } from '../../../services/whRepo';
+import { SupplierDto, WHStockInputHistoryDto } from '../../../types/whType';
+import { formatTransactionDateOnly } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<SupplierParamList, 'SupplierView'>;
 
@@ -254,30 +254,19 @@ const SupplierViewScreen = React.memo(({ route }: Props) => {
 
     return (
         <View className="flex flex-1">
-            <View className="top-3 flex flex-row justify-between px-2">
-                <View className="flex flex-row">
-                    <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.navigate("SupplierList")}>
-                        <ChevronLeft height={28} width={28} color="#fe6500" />
-                    </TouchableOpacity>
-                    {supplier && supplier.id != 0 ? (
-                        <Text className="font-bold text-base text-gray-700 ml-3">{truncateName(supplier.name)}</Text>
-                    ) : (
-                        <Text className="font-bold text-base text-gray-700 ml-3">New supplier</Text>
-                    )}
-                </View>
-                {supplier && supplier.id != 0 && (
-                    <View>
-                        <TouchableOpacity
-                            onPress={() => removesupplier(supplier.id)}
-                            className="rounded-full w-6 h-6 flex items-center justify-center mr-2"
-                        >
-                            <Trash2 height={20} width={20} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
-            <View className="w-full h-[2px] bg-gray-500 mt-2 mb-2"></View>
-
+            <TitleHeaderComponent
+                isParent={false}
+                title={supplier && supplier.name || ""}
+                userName={""}
+                onPress={() => navigation.navigate("SupplierList")}
+                showTrash={supplier && supplier.id !== 0}
+                onTrashPress={() => {
+                    if (supplier && supplier.id !== 0) {
+                        removesupplier(supplier.id);
+                    }
+                }}
+            />
+            <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
             <View className="px-4 w-full">
                 {supplier && (
                     <>

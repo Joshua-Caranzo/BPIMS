@@ -3,9 +3,9 @@ export type BranchStockDto = {
     name: string;
     quantity: number;
     unitOfMeasure: string;
-    criticalValue: number;
+    whCriticalValue: number;
     sellByUnit: boolean;
-    moq?: number | null;
+    storeCriticalValue: number;
     imagePath: string | null;
     imageUrl: string | null;
     whQty: number;
@@ -26,7 +26,7 @@ export type StockInputDto = {
 export type StockInputHistoryDto = {
     id: number;
     qty: number;
-    moq: number;
+    storeCriticalValue: number;
     actualTotalQty: number;
     expectedTotalQty: number;
     deliveredBy: string;
@@ -37,24 +37,65 @@ export type StockInputHistoryDto = {
     [key: string]: string | number | Date;
 };
 
+export type BranchStock = {
+    id: number;
+    branchId: number;
+    name: string;
+    quantity: number;
+    criticalValue: number;
+};
+
 export type ItemStock = {
     id: number;
     name: string;
-    ppQty: number;
-    ppName: string;
-    snName: string;
-    lName: string;
-    snQty: number;
-    lQty: number;
+    branches: BranchStock[];
     whQty: number;
     whName: string;
-    criticalValue: number;
+    whCriticalValue: number;
     sellByUnit: boolean;
     imagePath: string | null;
     imageUrl: string | null;
-    moq: number | null;
-    ppId: number;
-    snId: number;
+    storeCriticalValue: number;
     whId: number;
-    lId: number
+    unitOfMeasure: string | null
+};
+
+export type EditingItemDto = {
+    id: number;
+    qty: number;
+    isWareHouse: boolean;
+    branchName: string;
+    itemName: string;
+    sellByUnit: boolean;
+};
+
+export type WHBranchStock = {
+    id: number; // branchitem ID
+    branchId: number; // actual branch ID
+    name: string; // branch name
+    quantity: number;
+    criticalValue: number;
+};
+
+export type WHItemStock = {
+    id: number;
+    name: string;
+    branches: BranchStock[];
+    sellByUnit: boolean;
+    imagePath: string | null;
+    imageUrl: string | null;
+    storeCriticalValue: number;
+    unitOfMeasure: string | null;
+};
+
+export type StockTransferDto = {
+    id: number;
+    quantity: number;
+    branchFromId: number;
+    branchToId: number;
+    branchFrom: string;
+    branchTo: string;
+    date: Date;
+} & {
+    [key: string]: string | number | Date;
 };

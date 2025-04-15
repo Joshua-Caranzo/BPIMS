@@ -1,23 +1,24 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
+    PermissionsAndroid,
     ScrollView,
     Text,
     TouchableOpacity,
-    View,
-    Alert,
-    PermissionsAndroid,
-    ActivityIndicator
+    View
 } from 'react-native';
 import { X } from 'react-native-feather';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { ItemStackParamList } from '../../../navigation/navigation';
-import { generateReceipt } from '../../../services/salesRepo';
+import ThermalPrinterModule from 'react-native-thermal-printer';
+import ExpandableText from '../../../../components/ExpandableText';
 import PDFIcon from '../../../../components/icons/PDFIcon';
 import PrinterIcon from '../../../../components/icons/PrinterIcon';
-import { formatShortDateTimePH, formatTransactionDate, truncateName } from '../../../utils/dateFormat';
-import ThermalPrinterModule from 'react-native-thermal-printer';
 import { base64Image } from '../../../../components/images/base64Image';
+import { ItemStackParamList } from '../../../navigation/navigation';
+import { generateReceipt } from '../../../services/salesRepo';
+import { formatShortDateTimePH, formatTransactionDate } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'SlipOrder'>;
 
@@ -58,7 +59,6 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
         }
     }
 
-
     async function printReceipt() {
         try {
             await requestBluetoothPermission();
@@ -67,8 +67,8 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
             const itemsText = transactionItems
                 .map(
                     (item) =>
-                        `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)} ${item.name}\n` +
-                        `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n` 
+                        `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}X${item.name}\n` +
+                        `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n`
                 )
                 .join('');
             const text =
@@ -94,8 +94,8 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
                 `[L]<font size='normal'>Cash: [R] PHP ${Number(transaction?.amountReceived).toFixed(2)}</font>\n` +
                 `[L]<font size='normal'>Change: [R] PHP ${(Number(transaction?.amountReceived || 0) - Number(transaction?.totalAmount || 0)).toFixed(2)}</font>\n` +
                 '[C]--------------------------------\n' +
-                `[C]<font size='normal'>Balay Panday Official Receipt</font>\n` +
-                `[C]<font size='normal'>Thank you for your purchase!</font>\n` +
+                `[C]<font size='normal'>This is an Order Slip. Ask for Sales Invoice</font>\n` +
+                `[C]<font size='normal'>at the Receipt Counter.</font>\n` +
                 '[L]\n';
             await ThermalPrinterModule.printBluetooth({
                 payload: text,
@@ -151,7 +151,7 @@ const SlipOrderScreen = React.memo(({ route }: Props) => {
                                 <View key={index} className="flex flex-row py-2">
                                     <Text className="w-1/6 text-[12px] text-gray-800 text-left">{item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}</Text>
                                     <View className="w-1/2 text-gray-800 text-center">
-                                        <Text className="text-[12px]">{truncateName(item.name)}</Text>
+                                        <ExpandableText text={item.name}></ExpandableText>
                                         <Text className="text-[12px] text-gray-600">₱ {item.price}</Text>
                                     </View>
                                     <Text className="w-2/6 text-xs text-gray-800 text-right">

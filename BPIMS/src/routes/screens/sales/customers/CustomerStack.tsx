@@ -1,5 +1,5 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 import { CustomerStackParamList } from "../../../navigation/navigation";
 import CustomerScreen from "./CustomerScreen";
 import CustomerViewScreen from "./CustomerViewScreen";

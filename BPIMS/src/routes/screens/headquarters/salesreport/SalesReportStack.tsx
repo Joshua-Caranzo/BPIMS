@@ -1,9 +1,9 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 import { SalesReportHQParamList } from "../../../navigation/navigation";
 import SalesReportScreen from "./SalesReportScreen";
-import TransactionListScreen from "./TransactionList";
 import TransactionHistoryScreen from "./TransactionHistory";
+import TransactionListScreen from "./TransactionList";
 
 const SalesStack = createNativeStackNavigator<SalesReportHQParamList>();
 

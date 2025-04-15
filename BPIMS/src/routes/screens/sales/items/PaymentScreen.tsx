@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Image, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { ChevronLeft, Trash2 } from 'react-native-feather';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Cart } from '../../../types/salesType';
-import { getCart, updateCustomer } from '../../../services/salesRepo';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Text, TouchableOpacity, View } from 'react-native';
+import { Trash2 } from 'react-native-feather';
 import BankIcon from '../../../../components/icons/BankIcon';
 import PaypalIcon from '../../../../components/icons/PaypalIcon';
 import StoreIcon from '../../../../components/icons/StoreIcon';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { ItemStackParamList } from '../../../navigation/navigation';
-import { truncateShortName } from '../../../utils/dateFormat';
+import { getCart, updateCustomer } from '../../../services/salesRepo';
+import { Cart } from '../../../types/salesType';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'Payment'>;
 
@@ -69,24 +69,10 @@ const PaymentScreen = React.memo(({ route }: Props) => {
 
     return (
         <View style={{ flex: 1 }}>
-            <View className="top-3 flex flex-row justify-between px-2">
-                <TouchableOpacity
-                    className="bg-gray px-1 pb-2 ml-2"
-                    onPress={() => navigation.navigate('Cart', { user })}
-                >
-                    <ChevronLeft height={28} width={28} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">PAYMENT</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="items-center bg-gray relative mt-1 pb-32">
-                <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
+            <TitleHeaderComponent title='Payment' isParent={false} userName={user.name} onPress={() => navigation.navigate('Cart', { user })}></TitleHeaderComponent>
+
+            <View className="items-center bg-gray relative pb-32">
+                <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
                 <View className="items-center w-[90%] mt-4 h-[60%] sm:h-[65%] md:h-[70%]">
                     <View className="flex flex-row items-center">
                         <Text className="text-5xl text-black px-3 mt-8">₱ {formattedTotal}</Text>

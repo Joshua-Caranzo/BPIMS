@@ -1,24 +1,27 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    Text,
-    FlatList,
-    ActivityIndicator,
-} from 'react-native';
-import { Menu, PlusCircle, Search } from 'react-native-feather';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getUserDetails } from '../../../utils/auth';
-import { ObjectDto, UserDetails } from '../../../types/userType';
-import { ItemStock } from '../../../types/stockType';
-import { getStocksMonitor } from '../../../services/stockRepo';
-import { getSocketData } from '../../../utils/apiService';
-import { StockMonitorParamList } from '../../../navigation/navigation';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Edit3, MinusCircle, PlusCircle, Search } from 'react-native-feather';
+import ExpandableText from '../../../../components/ExpandableText';
 import HQSidebar from '../../../../components/HQSidebar';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { StockMonitorParamList } from '../../../navigation/navigation';
+import { editStock, editWHStock, getStocksMonitor } from '../../../services/stockRepo';
 import { getSupplierList } from '../../../services/whRepo';
-import { truncateName, truncateShortName } from '../../../utils/dateFormat';
+import { EditingItemDto, ItemStock } from '../../../types/stockType';
+import { ObjectDto, UserDetails } from '../../../types/userType';
+import { getSocketData } from '../../../utils/apiService';
+import { getUserDetails } from '../../../utils/auth';
+import { formatQuantity } from '../../../utils/dateFormat';
 
 const StockMonitorScreen = React.memo(() => {
     const [loading, setLoading] = useState(false);
@@ -33,6 +36,10 @@ const StockMonitorScreen = React.memo(() => {
     const [hasMoreData, setHasMoreData] = useState(true);
     const [criticalCount, setCriticalCount] = useState(0);
     const [suppliers, setSuppliers] = useState<ObjectDto[]>([]);
+    const [isInputMode, setInputMode] = useState(false);
+    const [editingItem, setEditingItem] = useState<EditingItemDto>();
+    const [quantity, setQuantity] = useState<string>("0.00");
+    const [buttonLoading, setButtonLoading] = useState<boolean>(false);
 
     const inputRef = useRef<TextInput>(null);
     const navigation = useNavigation<NativeStackNavigationProp<StockMonitorParamList>>();
@@ -111,7 +118,6 @@ const StockMonitorScreen = React.memo(() => {
         setPage(prevPage => prevPage + 1);
     }, [hasMoreData, loading, loadMore, activeCategory]);
 
-
     const handleChangeCategory = useCallback((id: number) => {
         if (activeCategory !== id) {
             setActiveCategory(id);
@@ -125,227 +131,316 @@ const StockMonitorScreen = React.memo(() => {
         inputRef.current?.focus();
     }, []);
 
-    const handleStockInput = useCallback((item: ItemStock, id: number, wh: boolean, whQty: number | null) => {
+    const handleStockInput = useCallback((item: ItemStock, id: number, isWH: boolean, whQty: number | null) => {
         if (user) {
-            if (wh)
+            if (isWH)
                 navigation.navigate('StockInput', { item, user, branchId: null, whId: id, whQty, suppliers });
             else
                 navigation.navigate('StockInput', { item, user, branchId: id, whId: null, whQty, suppliers });
         }
     }, [user, navigation]);
 
+    const handleReturnToSupplier = useCallback((item: ItemStock) => {
+        if (user) {
+            navigation.navigate('ReturnStock', { item, user, suppliers });
+        }
+    }, [user, navigation]);
+
+    const constInputMode = useCallback((id: number, qty: number, isWareHouse: boolean, sellByUnit: boolean, itemName: string, branchName: string) => {
+        setQuantity(qty.toString())
+        setEditingItem((prev) => prev ? { ...prev, id, qty, isWareHouse, itemName, branchName, sellByUnit } : { id, qty, isWareHouse, itemName, branchName, sellByUnit });
+        setInputMode((prev) => !prev);
+    }, []);
+
+    const handleKeyPress = useCallback((key: string) => {
+        if (editingItem) {
+            if (editingItem.sellByUnit) {
+                const currentValue = quantity.toString() || '';
+                const newValue = currentValue + key;
+                setQuantity(newValue);
+            }
+            else {
+                let current = quantity.replace('.', '');
+                current += key;
+                const formatted = (parseInt(current) / 100).toFixed(2);
+                setQuantity(formatted);
+            }
+        }
+    }, [editingItem, quantity]);
+
+    const handleBackspace = useCallback(() => {
+        if (editingItem) {
+            if (editingItem.sellByUnit) {
+                const currentValue = quantity.toString() || '';
+                const newValue = currentValue.slice(0, -1);
+                setQuantity(newValue);
+            } else {
+                let current = quantity.replace('.', '');
+                current = current.slice(0, -1) || '0';
+                const formatted = (parseInt(current) / 100).toFixed(2);
+                setQuantity(formatted);
+            }
+        }
+    }, [editingItem, quantity]);
+
+    const saveEditedStock = useCallback(async () => {
+        setButtonLoading(true)
+        if (!editingItem) return;
+
+        if (editingItem.isWareHouse) {
+            await editWHStock(editingItem.id, Number(quantity));
+        } else {
+            await editStock(editingItem.id, Number(quantity));
+        }
+        setButtonLoading(false)
+        setInputMode((prev) => !prev);
+
+        await getItems(0, 1, "");
+    }, [editingItem, quantity]);
+
+    const calculateTotalQuantity = useCallback((item: ItemStock) => {
+        const branchesTotal = item.branches.reduce((sum, branch) => sum + Number(branch.quantity), 0);
+        return branchesTotal + Number(item.whQty);
+    }, []);
+
     const renderItem = useCallback(
-        ({ item }: { item: ItemStock }) => (
-            <View className="bg-gray pb-2 px-4 flex flex-column">
-                <View className='flex flex-row justify-between mb-2 border-b border-gray-300 '>
-                    <View className="pr-4 flex-1 w-[70%]">
-                        <Text className="text-black text-sm mb-1">
-                            {truncateName(item.name)}
-                        </Text>
+        ({ item }: { item: ItemStock }) => {
+            const getQuantityTextColor = (quantity: number, criticalValue: number) =>
+                quantity < criticalValue ? 'text-red-500' : 'text-gray-700';
+
+            return (
+                <View className="bg-white rounded-lg shadow-sm mb-3 mx-2 p-4">
+                    <View className="flex-row justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                        <View className="flex-1 pr-2">
+                            <ExpandableText text={item.name} />
+                        </View>
+                        <View className="flex-row items-center space-x-1">
+                            <Text className="text-green-600 font-semibold text-base">
+                                {formatQuantity(calculateTotalQuantity(item), item.sellByUnit)}
+                            </Text>
+                            <Text className="text-gray-500 text-sm">
+                                {item.unitOfMeasure || 'pcs'}
+                            </Text>
+                        </View>
                     </View>
-                    <View className="flex flex-row w-[20%] justify-end">
-                        <Text
-                            className={`text-gray-700 font-bold text-sm`}
-                        >
-                            {item.sellByUnit
-                                ? Math.round(
-                                    Number(item.ppQty) + Number(item.lQty) + Number(item.snQty) + Number(item.whQty)
-                                ).toFixed(0)
-                                : (Number(item.ppQty) + Number(item.lQty) + Number(item.snQty) + Number(item.whQty)).toFixed(2)
-                            }
-                        </Text>
+
+                    <View className="space-y-3">
+                        <View className="flex-row justify-between items-center">
+                            <View className="flex-1">
+                                <Text className={`text-sm ${getQuantityTextColor(Number(item.whQty), Number(item.whCriticalValue))}`}>
+                                    {item.whName}
+                                </Text>
+                            </View>
+
+                            <View className="flex-row items-center space-x-3">
+                                <View className="flex-row items-center bg-gray-50 rounded-md px-2 py-1">
+                                    <Text className={`text-sm font-medium ${getQuantityTextColor(Number(item.whQty), Number(item.whCriticalValue))}`}>
+                                        {formatQuantity(item.whQty, item.sellByUnit)}
+                                    </Text>
+                                    <Text className="text-gray-500 text-sm ml-1">
+                                        {item.unitOfMeasure || 'pcs'}
+                                    </Text>
+                                </View>
+                                <View className="flex-row space-x-2">
+
+                                    {activeCategory === 0 && (
+                                        <TouchableOpacity
+                                            onPress={() => constInputMode(item.whId, item.whQty, true, item.sellByUnit, item.name, item.whName)}
+                                            className="p-2 bg-orange-50 rounded-full"
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        >
+                                            <Edit3 height={18} color="#fe6500" />
+                                        </TouchableOpacity>
+                                    )}
+                                    {(activeCategory === 2 || activeCategory == 1) && (
+                                        <TouchableOpacity
+                                            onPress={() => handleStockInput(item, item.whId, true, null)}
+                                            className="p-2 bg-orange-50 rounded-full"
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        >
+                                            <PlusCircle height={18} color="#fe6500" />
+                                        </TouchableOpacity>
+                                    )}
+                                    {activeCategory === 2 && (
+                                        <TouchableOpacity
+                                            onPress={() => handleReturnToSupplier(item)}
+                                            className="p-2 bg-orange-50 rounded-full"
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        >
+                                            <MinusCircle height={18} color="#fe6500" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+
+                            </View>
+                        </View>
+
+                        {item.branches.map((branch) => {
+                            const isCritical = Number(branch.quantity) < Number(item.storeCriticalValue);
+                            const quantityColor = activeCategory === 1
+                                ? getQuantityTextColor(branch.quantity, item.storeCriticalValue)
+                                : 'text-gray-700';
+
+                            return (
+                                <View key={`${branch.id}-${branch.branchId}`} className="flex-row justify-between items-center">
+                                    <View className="flex-1">
+                                        <Text className={`text-sm ${isCritical && activeCategory === 1 ? 'text-red-500' : 'text-gray-600'}`}>
+                                            {branch.name}
+                                        </Text>
+                                    </View>
+
+                                    <View className="flex-row items-center space-x-3">
+                                        <View className="flex-row items-center bg-gray-50 rounded-md px-2 py-1">
+                                            <Text className={`text-sm font-medium ${quantityColor}`}>
+                                                {formatQuantity(branch.quantity, item.sellByUnit)}
+                                            </Text>
+                                            <Text className="text-gray-500 text-sm ml-1">
+                                                {item.unitOfMeasure || 'pcs'}
+                                            </Text>
+                                        </View>
+
+                                        {activeCategory === 0 && (
+                                            <TouchableOpacity
+                                                onPress={() => constInputMode(branch.id, branch.quantity, false, item.sellByUnit, item.name, branch.name)}
+                                                className="p-2 bg-orange-50 rounded-full"
+                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            >
+                                                <Edit3 height={18} color="#fe6500" />
+                                            </TouchableOpacity>
+                                        )}
+
+                                        {(activeCategory === 1 || activeCategory === 2) && (
+                                            <TouchableOpacity
+                                                onPress={() => handleStockInput(item, branch.id, false, item.whQty)}
+                                                className="p-2 bg-orange-50 rounded-full"
+                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                            >
+                                                <PlusCircle height={18} color="#fe6500" />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
-                {activeCategory !== 1 ? (
-                    <View className={`px-10 ${activeCategory == 2 ? 'w-full' : 'w-[80%]'}`}>
-                        {[
-                            { name: item.whName, qty: item.whQty, id: item.whId, isWH: true, whQty: null },
-                            { name: item.ppName, qty: item.ppQty, id: item.ppId, isWH: false, whQty: item.whQty },
-                            { name: item.snName, qty: item.snQty, id: item.snId, isWH: false, whQty: item.whQty },
-                            { name: item.lName, qty: item.lQty, id: item.lId, isWH: false, whQty: item.whQty },
-                        ].map(({ name, qty, id, isWH, whQty }, index) => (
-                            <View key={`${id}-${index}`} className="flex flex-row items-center justify-between py-1">
-                                <Text className={`flex-1 ${Number(qty) >= Number(item.criticalValue) ? 'text-gray-500' : 'text-red-500'}`}>
-                                    {name}
-                                </Text>
-                                <Text className={`text-right ${activeCategory == 2 ? 'w-[20%]' : ''} ${Number(qty) >= Number(item.criticalValue) ? 'text-gray-500' : 'text-red-500'}`}>
-                                    {item.sellByUnit ? Math.round(Number(qty)).toFixed(0) : Number(qty).toFixed(2)}
-                                </Text>
-                                {activeCategory == 2 && (
-                                    <TouchableOpacity
-                                        onPress={() => handleStockInput(item, id, isWH, whQty)}
-                                        className="w-[10%] flex justify-end items-center"
-                                    >
-                                        <PlusCircle height={15} color="#fe6500" />
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        ))}
-                    </View>
-
-                ) : (
-                    <View className="px-10 w-full">
-
-                        <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${Number(item.whQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.whName}</Text>
-                            <Text className={`${Number(item.whQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
-                                item.sellByUnit
-                                    ? Math.round(
-                                        Number(item.whQty)
-                                    ).toFixed(0)
-                                    : (Number(item.whQty)).toFixed(2)
-                            }</Text>
-                            <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.whId, true, null)}
-                                className="flex flex-row justify-center items-center w-[10%] justify-end"
-                            >
-                                <PlusCircle height={15} color="#fe6500" />
-                            </TouchableOpacity>
-                        </View>
-
-
-                        <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${Number(item.ppQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.ppName}</Text>
-                            <Text className={`${Number(item.ppQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
-                                item.sellByUnit
-                                    ? Math.round(
-                                        Number(item.ppQty)
-                                    ).toFixed(0)
-                                    : (Number(item.ppQty)).toFixed(2)
-                            }</Text>
-                            <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.ppId, false, item.whQty)}
-                                className="flex flex-row justify-center items-center w-[10%] justify-end"
-                            >
-                                <PlusCircle height={15} color="#fe6500" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${Number(item.snQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.snName}</Text>
-                            <Text className={`${Number(item.snQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
-                                item.sellByUnit
-                                    ? Math.round(
-                                        Number(item.snQty)
-                                    ).toFixed(0)
-                                    : (Number(item.snQty)).toFixed(2)
-                            }</Text>
-                            <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.snId, false, item.whQty)}
-                                className="flex flex-row justify-center items-center w-[10%] justify-end"
-                            >
-                                <PlusCircle height={15} color="#fe6500" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View className="flex flex-row justify-between">
-                            <Text className={`flex-1 ${Number(item.lQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{item.lName}</Text>
-                            <Text className={`${Number(item.lQty) < Number(item.criticalValue) ? 'text-red-500' : 'text-gray-500'}`}>{
-                                item.sellByUnit
-                                    ? Math.round(
-                                        Number(item.lQty)
-                                    ).toFixed(0)
-                                    : (Number(item.lQty)).toFixed(2)
-                            }</Text>
-                            <TouchableOpacity
-                                onPress={() => handleStockInput(item, item.lId, false, item.whQty)}
-                                className="flex flex-row justify-center items-center w-[10%] justify-end"
-                            >
-                                <PlusCircle height={15} color="#fe6500" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-            </View >
-        ),
-        [activeCategory, handleStockInput]
+            );
+        },
+        [activeCategory, handleStockInput, calculateTotalQuantity, constInputMode]
     );
 
     return (
         <View style={{ flex: 1 }}>
-            {user && (
-                <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
-            )}
-            <View className="top-3 flex flex-row justify-between px-2 mb-6">
-                <TouchableOpacity className="bg-gray mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">STOCKS MONITOR</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
+            <View style={{ flex: 1, display: isInputMode ? 'flex' : 'none' }}>
+                <TitleHeaderComponent onPress={() => setInputMode(false)} isParent={false} title='please enter quantity' userName=''
+                ></TitleHeaderComponent>
+                <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
+                <View className="items-center mt-4">
+                    <View className="flex flex-column items-center">
+                        <Text className="text-lg font-bold text-gray-600 px-3 mt-4">
+                            {editingItem && `Enter New Quantity: ${editingItem.itemName}`}
                         </Text>
+                        <Text className="text-sm font-bold text-gray-600 px-3 mt-4">
+                            {editingItem && `${editingItem.branchName}`}
+                        </Text>
+                        <View className="flex flex-row items-center mt-6 w-48 border-b-2 border-[#fe6500] px-4 justify-center">
+                            <Text className="text-center text-3xl text-[#fe6500] tracking-widest">
+                                {editingItem && (editingItem.sellByUnit ? Number(quantity) : Number(quantity || 0).toFixed(2))}
+                            </Text>
+                        </View>
                     </View>
                 </View>
-            </View>
-            <View className="w-full justify-center items-center bg-gray relative">
-                <View className="w-full flex-row justify-between px-2">
-                    {['STOCKS', 'LOW STOCK ITEMS', 'STOCK INPUTS'].map((label, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            onPress={() => handleChangeCategory(index)}
-                            className={`${activeCategory === index ? 'border-b-4 border-yellow-500' : ''} ${index == 2 ? 'flex flex-row' : ''} w-[30%] justify-center items-center`}
-                        >
-                            <View className="flex-row items-center space-x-1">
-                                <Text
-                                    className={`${activeCategory === index ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium text-center`}
-                                >
-                                    {label}
-                                </Text>
-                                {index === 1 && criticalCount > 0 && (
-                                    <View className="bg-red-500 rounded-full px-1 flex items-center justify-center -mt-3">
-                                        <Text className="text-white text-[8px] font-bold">{criticalCount}</Text>
-                                    </View>
-                                )}
-                            </View>
-                            {index === 2 && <PlusCircle height={13} color="#fe6500" />}
-                        </TouchableOpacity>
+                <View className='absolute bottom-0 w-full items-center pb-3 pt-2'>
+                    <NumericKeypad onPress={handleKeyPress} onBackspace={handleBackspace} />
+                    <TouchableOpacity disabled={buttonLoading == true} onPress={saveEditedStock} className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${quantity === "0.00" ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
+                    >
+                        <View className="flex-1 items-center">
+                            <Text className={`text-lg text-center font-bold ${quantity === "0.00" ? 'text-[#fe6500]' : 'text-white'}`}>
+                                Save
+                            </Text>
+                        </View>
 
-                    ))}
+                        {buttonLoading && (
+                            <ActivityIndicator color={"white"} size={'small'} />
+                        )}
+                    </TouchableOpacity>
                 </View>
             </View>
-            <View className="justify-center items-center bg-gray relative mb-2">
-                <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 justify-between items-center">
-                    <View className="flex-row items-center rounded-md px-2 flex-1">
-                        <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
-                            <Search width={20} height={20} color="black" />
-                        </TouchableOpacity>
-                        <TextInput
-                            className="flex-1 h-8 text-black p-1"
-                            placeholder="Search items..."
-                            placeholderTextColor="#8a8a8a"
-                            value={search}
-                            onChangeText={(text) => {
-                                setLoading(true);
-                                setSearch(text);
-                                setPage(1);
-                            }}
-                            ref={inputRef}
-                            selectionColor="orange"
-                            returnKeyType="search"
-                        />
-                    </View>
-                </View>
-                {loading && (
-                    <View className="py-2">
-                        <ActivityIndicator size="small" color="#fe6500" />
-                        <Text className="text-center text-[#fe6500]">Fetching items...</Text>
-                    </View>
+
+            <View style={{ flex: 1, display: !isInputMode ? 'flex' : 'none' }}>
+                {user && (
+                    <HQSidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
                 )}
-            </View>
-            <View className="flex-1">
-                <FlatList
-                    data={stocks}
-                    renderItem={renderItem}
-                    keyExtractor={(item, index) => item.id.toString() + index.toString()}
-                    onEndReached={handleLoadMore}
-                    onEndReachedThreshold={0.3}
-                    contentContainerStyle={{ paddingBottom: 20 }}
-                    ListFooterComponent={
-                        loadMore ? <ActivityIndicator size="small" color="#fe6500" /> : null
-                    }
-                />
+                <TitleHeaderComponent isParent={true} userName={user?.name || ''} title={'STOCKS MONITOR'} onPress={toggleSidebar}></TitleHeaderComponent>
+
+                <View className="w-full justify-center items-center bg-gray relative">
+                    <View className="w-full flex-row justify-between items-center">
+                        {['STOCKS', 'LOW STOCK ITEMS', 'STOCK INPUTS'].map((label, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => handleChangeCategory(index)}
+                                className={`${activeCategory === index ? 'border-b-4 border-yellow-500' : ''} ${index == 2 ? 'flex flex-row' : ''} w-[30%] justify-center items-center`}
+                            >
+                                <View className="flex-row items-center space-x-1">
+                                    <Text
+                                        className={`${activeCategory === index ? 'text-gray-900' : 'text-gray-500'} text-[10px] font-medium text-center`}
+                                    >
+                                        {label}
+                                    </Text>
+                                    {index === 1 && criticalCount > 0 && (
+                                        <View className="bg-red-500 rounded-full px-1 flex items-center justify-center -mt-3">
+                                            <Text className="text-white text-[8px] font-bold">{criticalCount}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                {index === 2 && <PlusCircle height={13} color="#fe6500" />}
+                            </TouchableOpacity>
+
+                        ))}
+                    </View>
+                </View>
+                <View className="justify-center items-center bg-gray relative mb-2">
+                    <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 justify-between items-center">
+                        <View className="flex-row items-center rounded-md px-2 flex-1">
+                            <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
+                                <Search width={20} height={20} color="black" />
+                            </TouchableOpacity>
+                            <TextInput
+                                className="flex-1 h-8 text-black p-1"
+                                placeholder="Search items..."
+                                placeholderTextColor="#8a8a8a"
+                                value={search}
+                                onChangeText={(text) => {
+                                    setLoading(true);
+                                    setSearch(text);
+                                    setPage(1);
+                                }}
+                                ref={inputRef}
+                                selectionColor="orange"
+                                returnKeyType="search"
+                            />
+                        </View>
+                    </View>
+                    {loading && (
+                        <View className="py-2">
+                            <ActivityIndicator size="small" color="#fe6500" />
+                            <Text className="text-center text-[#fe6500]">Fetching items...</Text>
+                        </View>
+                    )}
+                </View>
+                <View className="flex-1">
+                    <FlatList
+                        data={stocks}
+                        renderItem={renderItem}
+                        keyExtractor={(item, index) => item.id.toString() + index.toString()}
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.3}
+                        contentContainerStyle={{ paddingBottom: 20 }}
+                        ListFooterComponent={
+                            loadMore ? <ActivityIndicator size="small" color="#fe6500" /> : null
+                        }
+                    />
+                </View>
             </View>
         </View>
     );

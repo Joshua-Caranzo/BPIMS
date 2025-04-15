@@ -1,20 +1,21 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import {
-    View,
-    TouchableOpacity,
-    TextInput,
-    Text,
-    ActivityIndicator,
-    FlatList,
-} from 'react-native';
-import { UserDetails } from '../../../types/userType';
-import { ChevronLeft, Search } from 'react-native-feather';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CustomerHQStackParamList, SalesReportParamList } from '../../../navigation/navigation';
-import { capitalizeFirstLetter, formatTransactionDate, truncateShortName } from '../../../utils/dateFormat';
-import { DailyTransactionDto } from '../../../types/reportType';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { Search } from 'react-native-feather';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { SalesReportParamList } from '../../../navigation/navigation';
 import { getAllTransactionHistory } from '../../../services/salesRepo';
+import { DailyTransactionDto } from '../../../types/reportType';
+import { UserDetails } from '../../../types/userType';
+import { capitalizeFirstLetter, formatTransactionDate } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<SalesReportParamList, 'TransactionList'>;
 
@@ -85,8 +86,17 @@ const TransactionListScreen = React.memo(({ route }: Props) => {
     const renderItem = useCallback(({ item }: { item: DailyTransactionDto }) => (
         <TouchableOpacity onPress={() => navigation.navigate('TransactionHistory', { transactionId: item.id })} className="mb-3 py-1 bg-gray rounded-lg border-b border-gray-500">
             <View className="flex-row justify-between">
-                <View className="flex flex-row justify-between w-full">
-                    <Text className="text-gray-500 font-medium">{item.slipNo}</Text>
+                <View className="flex flex-row justify-between w-full items-center">
+                    <View className="flex flex-row items-center">
+                        <Text className="text-gray-500 font-medium">{item.slipNo}</Text>
+
+                        {item.isVoided && (
+                            <View className="ml-2 px-2 py-1 bg-red-500 rounded">
+                                <Text className="text-white text-xs font-bold">Voided</Text>
+                            </View>
+                        )}
+                    </View>
+
                     <Text className="text-gray-500 font-medium">
                         {formatTransactionDate(item.transactionDate.toString())}
                     </Text>
@@ -115,23 +125,10 @@ const TransactionListScreen = React.memo(({ route }: Props) => {
 
     return (
         <View className='flex flex-1'>
-            <View className='top-3 flex flex-row justify-between px-2'>
-                <TouchableOpacity className="bg-gray px-1 pb-2 ml-2" onPress={() => navigation.push('SalesReport')}>
-                    <ChevronLeft height={28} width={28} color={"#fe6500"} />
-                </TouchableOpacity>
-                <View className='pr-4 flex-1 items-center'>
-                    <Text className="text-black text-lg font-bold mb-1">TRANSACTIONS</Text>
-                </View>
-                <View className="items-center">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="justify-center items-center bg-gray relative mt-4 mb-6">
-                <View className="flex flex-row w-full bg-gray-300 mt-1 py-1 px-3 items-center">
+            <TitleHeaderComponent isParent={false} userName={user?.name || ''} title={'transactions'} onPress={() => navigation.push('SalesReport')}></TitleHeaderComponent>
+
+            <View className="justify-center items-center bg-gray relative mb-6 pb-8">
+                <View className="flex flex-row w-full bg-gray-300 py-1 px-3 items-center">
                     <View className="flex-row items-center rounded-md px-2 flex-1">
                         <TouchableOpacity className="mr-2" onPress={handleSearchClick}>
                             <Search width={20} height={20} color="black" />
@@ -162,7 +159,7 @@ const TransactionListScreen = React.memo(({ route }: Props) => {
                         data={transactions}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id.toString()}
-                        className="w-full mt-4 px-4 h-[40%]"
+                        className="w-full mt-4 px-4"
                         onEndReached={loadMoreTransactions}
                         onEndReachedThreshold={0.5}
                         ListFooterComponent={renderFooter}

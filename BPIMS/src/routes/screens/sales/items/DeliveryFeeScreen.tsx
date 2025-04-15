@@ -1,17 +1,16 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
-import { ChevronLeft } from 'react-native-feather';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import NumericKeypad from '../../../../components/NumericKeypad';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { ItemStackParamList } from '../../../navigation/navigation';
 import { updateDeliveryFee } from '../../../services/salesRepo';
-import NumericKeypad from '../../../../components/NumericKeypad';
-import { truncateShortName } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<ItemStackParamList, 'DeliveryFee'>;
 
@@ -60,24 +59,10 @@ const DeliveryFeeScreen = React.memo(({ route }: Props) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <View className="top-3 flex flex-row justify-between px-2">
-        <TouchableOpacity
-          className="bg-gray px-1 pb-2 ml-2"
-          onPress={() => navigation.goBack()}
-        >
-          <ChevronLeft height={28} width={28} color="#fe6500" />
-        </TouchableOpacity>
-        <Text className="text-black text-lg font-bold">Delivery Fee</Text>
-        <View className="items-center mr-2">
-          <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-            <Text className="text-white" style={{ fontSize: 12 }}>
-              {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-            </Text>
-          </View>
-        </View>
-      </View>
-      <View className="items-center bg-gray relative mt-1 pb-32">
-        <View className="w-full h-[2px] bg-gray-500 mt-1 mb-2"></View>
+      <TitleHeaderComponent title='Delivery Fee' isParent={false} userName={user.name} onPress={() => navigation.goBack()}></TitleHeaderComponent>
+
+      <View className="items-center bg-gray relative pb-32">
+        <View className="w-full h-[2px] bg-gray-500 mb-2"></View>
         <View className="items-center w-[90%] mt-4 h-[60%]">
           <View className="flex flex-column items-center">
             <Text className="text-lg font-bold text-gray-600 px-3 mt-4">

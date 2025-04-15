@@ -2,7 +2,7 @@
 export type ItemHQDto = {
     id: number;
     name: string;
-    categoryId: number;
+    categoryId: number | null;
     categoryName: string
     price: number;
     cost: number;
@@ -10,8 +10,8 @@ export type ItemHQDto = {
     imagePath: string | null;
     imageUrl: string | null;
     sellByUnit: boolean;
-    moq: number;
-    criticalValue: number;
+    storeCriticalValue: number;
+    whCriticalValue: number;
     unitOfMeasure: string;
 } & {
     [key: string]: string | number | Date | boolean | null;

@@ -1,5 +1,5 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 import { SupplierParamList } from "../../../navigation/navigation";
 import SupplierListScreen from "./SupplierList";
 import SupplierViewScreen from "./SupplierView";

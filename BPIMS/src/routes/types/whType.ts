@@ -3,17 +3,17 @@ export type WHStockDto = {
     name: string;
     quantity: number;
     unitOfMeasure: string;
-    criticalValue: number;
+    storeCriticalValue: number;
     sellByUnit: boolean;
     imagePath: string | null;
     imageUrl: string | null;
-    moq: number | null;
+    whCriticalValue: number;
 };
 
 export type WHStockInputHistoryDto = {
     id: number;
     qty: number;
-    moq: number;
+    whCriticalValue: number;
     actualTotalQty: number;
     expectedTotalQty: number;
     deliveredBy: number;
@@ -44,3 +44,16 @@ export type SupplierDto = {
     contactNumber2: string | null;
     address: string;
 };
+
+export type ReturnToStockDto = {
+    id: number;
+    supplierId: number;
+    supplierName: string;
+    whItemId: number;
+    reason: string;
+    quantity: number;
+    date: Date;
+} & {
+    [key: string]: string | number | Date;
+};
+

@@ -9,6 +9,7 @@ export type ItemDto = {
     imageUrl: string | null;
     quantity: number;
     sellByUnit: boolean
+    branchItemId: number | null;
 };
 
 export type CategoryDto = {
@@ -63,12 +64,28 @@ export type TransactionItemsDto = {
     sellByUnit: number;
 }
 
+export type LoyaltyItemDto = {
+    id: number;
+    newProgress: boolean;
+    currentStage: number;
+    hasReward?: boolean;
+    rewardName?: string;
+    isItem?: boolean;
+    itemName?: string;
+    doneChoose: boolean | false;
+    lastItemId?: number;
+    qty?: number
+    completeLoyalty: boolean | false
+}
+
 export type TransactionRequestDto = {
     transaction: TransactionDto;
     transactionItems: TransactionItemsDto[];
+    loyaltyItemDto?: LoyaltyItemDto;
 }
 
 export type FilterType = "Week" | "Month" | "Year" | "All";
+export type FilterTypeHQ = "Daily" | "Weekly" | "Monthly" | "Yearly" | "All-Time";
 
 export type SalesData = {
     [key in FilterType]: {
@@ -77,3 +94,23 @@ export type SalesData = {
         dataPointText: string
     }[];
 };
+
+export type SalesDataHQ = {
+    label: string;
+    value: number;
+    dataPointText: string
+};
+
+export type RewardTransactionDto = {
+    itemName: string;
+    paymentDone: boolean;
+    chooseDone: boolean;
+}
+
+export type SaleItemsDto = {
+    grossSales: number;
+    totalDiscount: number;
+    netSales: number;
+    itemCost: number;
+    grossProfit: number;
+}

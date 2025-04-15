@@ -1,25 +1,26 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
+    PermissionsAndroid,
     ScrollView,
     Text,
     TouchableOpacity,
     View,
-    ActivityIndicator,
-    Alert,
-    PermissionsAndroid,
 } from 'react-native';
-import { X } from 'react-native-feather';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { SalesReportHQParamList, SalesReportParamList } from '../../../navigation/navigation';
-import { generateReceipt } from '../../../services/salesRepo';
+import { Trash2, X } from 'react-native-feather';
+import ThermalPrinterModule from 'react-native-thermal-printer';
+import ExpandableText from '../../../../components/ExpandableText';
 import PDFIcon from '../../../../components/icons/PDFIcon';
 import PrinterIcon from '../../../../components/icons/PrinterIcon';
-import { formatShortDateTimePH, formatTransactionDate, truncateName } from '../../../utils/dateFormat';
-import { TransactionDto, TransactionItemsDto } from '../../../types/customerType';
-import { getTransactionHistory } from '../../../services/customerRepo';
 import { base64Image } from '../../../../components/images/base64Image';
-import ThermalPrinterModule from 'react-native-thermal-printer';
+import { SalesReportHQParamList, SalesReportParamList } from '../../../navigation/navigation';
+import { getTransactionHistory } from '../../../services/customerRepo';
+import { generateReceipt, voidTransaction } from '../../../services/salesRepo';
+import { TransactionDto, TransactionItemsDto } from '../../../types/customerType';
+import { formatShortDateTimePH, formatTransactionDate } from '../../../utils/dateFormat';
 
 type Props = NativeStackScreenProps<SalesReportHQParamList, 'TransactionHistory'>;
 
@@ -106,7 +107,7 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
             const itemsText = transactionItems
                 .map(
                     (item) =>
-                        `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)} ${item.name}\n` +
+                        `[L]${item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}X${item.name}\n` +
                         `[L]    PHP ${Number(item.price).toFixed(2)} [R] PHP ${Number(item.amount).toFixed(2)}\n`
                 )
                 .join('');
@@ -133,8 +134,8 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                 `[L]<font size='normal'>Cash: [R] PHP ${Number(transaction?.amountReceived).toFixed(2)}</font>\n` +
                 `[L]<font size='normal'>Change: [R] PHP ${(Number(transaction?.amountReceived || 0) - Number(transaction?.totalAmount || 0)).toFixed(2)}</font>\n` +
                 '[C]--------------------------------\n' +
-                `[C]<font size='normal'>Balay Panday Official Receipt</font>\n` +
-                `[C]<font size='normal'>Thank you for your purchase!</font>\n` +
+                `[C]<font size='normal'>This is an Order Slip. Ask for Sales Invoice</font>\n` +
+                `[C]<font size='normal'>at the Receipt Counter.</font>\n` +
                 '[L]\n';
             await ThermalPrinterModule.printBluetooth({
                 payload: text,
@@ -147,6 +148,30 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
         }
         finally { setPrintLoading(false) }
     }
+
+    const handleVoid = useCallback(() => {
+        Alert.alert(
+            'Confirm Void',
+            'Are you sure you want to void this transaction?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                },
+                {
+                    text: 'Yes',
+                    onPress: async () => {
+                        if (transaction) {
+                            setLoading(true);
+                            await voidTransaction(transaction.id);
+                            navigation.goBack()
+                            setLoading(false)
+                        }
+                    }
+                }
+            ]
+        );
+    }, [transaction]);
 
     if (loading) {
         return (
@@ -206,7 +231,7 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                                 <View key={index} className="flex flex-row py-2">
                                     <Text className="w-1/6 text-[12px] text-gray-800 text-left">{item.sellByUnit ? Math.round(Number(item.quantity)).toFixed(0) : Number(item.quantity).toFixed(2)}</Text>
                                     <View className="w-1/2 text-gray-800 text-center">
-                                        <Text className="text-[12px]">{truncateName(item.name)}</Text>
+                                        <ExpandableText text={item.name}></ExpandableText>
                                         <Text className="text-[12px] text-gray-600">₱ {item.price}</Text>
                                     </View>
                                     <Text className="w-2/6 text-xs text-gray-800 text-right">
@@ -256,18 +281,36 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                 >
                     <TouchableOpacity
                         onPress={handleGeneratePDF}
-                        className="w-[35%] rounded-l-xl p-2 items-center bg-gray-900 mr-[1px] flex flex-row justify-center"
+                        className="w-[25%] rounded-l-xl p-2 items-center bg-gray-900 mr-[1px] flex flex-row justify-center"
                     >
                         <PDFIcon size={36} />
                         <Text className="font-bold text-white">PDF</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={printReceipt}
-                        className="w-[65%] rounded-r-xl p-3 items-center flex flex-row justify-center bg-gray-900"
+                        className="w-[50%] p-3 items-center flex flex-row justify-center bg-gray-900 mr-[1px]"
                     >
                         <PrinterIcon size={28} />
                         <Text className="font-bold text-white ml-2">PRINT</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleVoid}
+                        disabled={transaction.isVoided}
+                        className={`w-[25%] rounded-r-xl p-3 items-center flex flex-row justify-center ${transaction.isVoided ? 'bg-red-500 p-4' : 'bg-gray-900'
+                            }`}
+                    >
+                        {transaction.isVoided ? (
+                            <>
+                                <Text className="font-bold text-white">VOIDED</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 height={28} width={28} color="white" />
+                                <Text className="font-bold text-white ml-2">VOID</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+
                 </View>
             </View>
         </View>

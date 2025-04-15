@@ -1,26 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-    View,
-    Text,
-    ScrollView,
-    TouchableOpacity,
-    Dimensions,
-    ActivityIndicator,
-    StyleSheet,
-} from 'react-native';
-import Sidebar from '../../../../components/Sidebar';
-import { UserDetails } from '../../../types/userType';
-import { getUserDetails } from '../../../utils/auth';
-import { BarChart, LineChart } from 'react-native-gifted-charts';
-import { Menu } from 'react-native-feather';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { debounce } from 'lodash';
-import { getSocketData } from '../../../utils/apiService';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    capitalizeFirstLetter,
-    formatTransactionDateOnly,
-    formatTransactionTime,
-    truncateShortName,
-} from '../../../utils/dateFormat';
+    ActivityIndicator,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { LineChart } from 'react-native-gifted-charts';
+import Sidebar from '../../../../components/Sidebar';
+import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
+import { SalesReportParamList } from '../../../navigation/navigation';
+import { getAllTransactionHistory } from '../../../services/salesRepo';
 import {
     AnalysisReportResponse,
     DailyTransactionDto,
@@ -28,14 +23,15 @@ import {
     SalesGraphDto,
     TotalSalesDto,
 } from '../../../types/reportType';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SalesReportParamList } from '../../../navigation/navigation';
 import { FilterType, SalesData } from '../../../types/salesType';
-import { parse } from 'react-native-svg';
-import { OrderHistory } from '../../../types/customerType';
-import { getTransactionHistory } from '../../../services/customerRepo';
-import { getAllTransactionHistory } from '../../../services/salesRepo';
+import { UserDetails } from '../../../types/userType';
+import { getSocketData } from '../../../utils/apiService';
+import { getUserDetails } from '../../../utils/auth';
+import {
+    capitalizeFirstLetter,
+    formatTransactionDateOnly,
+    formatTransactionTime
+} from '../../../utils/dateFormat';
 
 const SalesReportScreen = React.memo(() => {
     const [user, setUser] = useState<UserDetails>();
@@ -62,7 +58,6 @@ const SalesReportScreen = React.memo(() => {
     const chartPadding = 40; // Adjust padding/margin as needed
 
     const filteredData = salesData ? salesData[selectedFilter] : [];
-
     const dataLength = filteredData.length || 1; // Avoid division by zero
     const calculatedSpacing = selectedFilter === "All" || "Year"
         ? Math.max((screenWidth - chartPadding) / dataLength, 60)  // If "all" is selected, min 60
@@ -270,20 +265,9 @@ const SalesReportScreen = React.memo(() => {
             {user && (
                 <Sidebar isVisible={isSidebarVisible} toggleSidebar={toggleSidebar} userDetails={user} />
             )}
-            <View className="top-3 flex bg-gray flex-row justify-between px-2">
-                <TouchableOpacity className="mt-1 ml-2" onPress={toggleSidebar}>
-                    <Menu width={20} height={20} color="#fe6500" />
-                </TouchableOpacity>
-                <Text className="text-black text-lg font-bold">SALES REPORT</Text>
-                <View className="items-center mr-2">
-                    <View className="px-2 py-1 bg-[#fe6500] rounded-lg">
-                        <Text className="text-white" style={{ fontSize: 12 }}>
-                            {truncateShortName(user?.name ? user.name.split(' ')[0].toUpperCase() : '')}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-            <View className="w-full justify-center items-center bg-gray relative mt-4">
+            <TitleHeaderComponent title="sales report" userName={user?.name || ""} onPress={toggleSidebar}
+                isParent={true}></TitleHeaderComponent>
+            <View className="w-full justify-center items-center bg-gray relative ">
                 <View className="w-full flex-row justify-between px-2">
                     {[0, 1, 2].map((id) => (
                         <TouchableOpacity
@@ -432,34 +416,49 @@ const SalesReportScreen = React.memo(() => {
                             ))}
                         </View>
 
-                        <LineChart
-                            data={filteredData}
-                            width={screenWidth - 40}
-                            animateOnDataChange
-                            thickness={3}
-                            height={200}
-                            color="#fe6500"
-                            noOfSections={3}
-                            areaChart
-                            startFillColor="rgba(254, 101, 0, 0.4)"
-                            endFillColor="rgba(243, 244, 246, 0.4)"
-                            startOpacity={0.4}
-                            endOpacity={0.4}
-                            hideRules
-                            yAxisColor="transparent"
-                            xAxisColor="transparent"
-                            dataPointsColor="#fe6500"
-                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10, textAlign: 'center' }}
-                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
-                            adjustToWidth
-                            hideYAxisText
-                            initialSpacing={20}
-                            endSpacing={20}
-                            dataPointsWidth={20}
-                            spacing={calculatedSpacing}
-                            textColor="black"
+                        {filteredData[0]?.label != null ? (
+                            filteredData.length === 1 ? (
+                                <View className="w-full items-center mt-4">
+                                    <Text className="text-gray-500 text-sm">Not enough data</Text>
+                                </View>
+                            ) : (
+                                <View className="w-full flex justify-center items-center">
+                                    <View className="w-[90%]">
+                                        <LineChart
+                                            data={filteredData}
+                                            animateOnDataChange
+                                            thickness={3}
+                                            height={200}
+                                            color="#fe6500"
+                                            noOfSections={3}
+                                            areaChart
+                                            startFillColor="rgba(254, 101, 0, 0.4)"
+                                            endFillColor="rgba(243, 244, 246, 0.4)"
+                                            startOpacity={0.4}
+                                            endOpacity={0.4}
+                                            hideRules
+                                            yAxisColor="transparent"
+                                            xAxisColor="transparent"
+                                            dataPointsColor="#fe6500"
+                                            xAxisLabelTextStyle={{ color: '#000', fontSize: 10, textAlign: 'center' }}
+                                            yAxisTextStyle={{ color: '#000', fontSize: 10 }}
+                                            adjustToWidth
+                                            hideYAxisText
+                                            initialSpacing={20}
+                                            endSpacing={10}
+                                            dataPointsWidth={20}
+                                            spacing={calculatedSpacing}
+                                            textColor="black"
+                                        />
+                                    </View>
+                                </View>
+                            )
+                        ) : (
+                            <View className="w-full items-center mt-4">
+                                <Text className="text-gray-500 text-sm">No transactions available</Text>
+                            </View>
+                        )}
 
-                        />
                     </View>
                     {analysisReport && (
                         <View className="w-full mt-4 p-4">
@@ -469,7 +468,7 @@ const SalesReportScreen = React.memo(() => {
                                         className={`font-semibold text-lg ${analysisReport.percentChange > 0 ? 'text-green-600' : 'text-red-600'
                                             }`}
                                     >
-                                        {analysisReport.percentChange > 0 ? '▲' : '▼'} {analysisReport.percentChange}%
+                                        {analysisReport.percentChange > 0 ? '▲' : '▼'} {analysisReport.percentChange.toFixed(2)}%
                                     </Text>
                                     <Text className="text-gray-500 text-xs">This month vs avg months</Text>
                                 </View>
@@ -477,24 +476,24 @@ const SalesReportScreen = React.memo(() => {
                             <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
                                 <View className="flex flex-column items-center">
                                     <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesAmount}</Text>
-                                    <Text className="text-gray-500 text-xs">Highest Sales – {formatTransactionDateOnly(analysisReport.highestSalesDate || "")}</Text>
+                                    <Text className="text-gray-500 text-xs">Highest Sales – {analysisReport.highestSalesDate != null ? formatTransactionDateOnly(analysisReport.highestSalesDate) : "No Data"}</Text>
                                 </View>
                             </View>
                             <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
                                 <View className="flex flex-column items-center">
                                     <Text className="text-green-600 font-semibold text-lg">₱ {analysisReport.highestSalesMonthAmount}</Text>
-                                    <Text className="text-gray-500 text-xs">Highest Sales This Month – {formatTransactionDateOnly(analysisReport.highestSalesMonthDate || "")}</Text>
+                                    <Text className="text-gray-500 text-xs">Highest Sales This Month – {analysisReport.highestSalesMonthDate != null ? formatTransactionDateOnly(analysisReport.highestSalesMonthDate) : "No Data"}</Text>
                                 </View>
                             </View>
                             <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
                                 <View className="flex flex-column items-center">
-                                    <Text className="text-blue-600 font-semibold text-lg">{analysisReport.highOrderPercentage}</Text>
+                                    <Text className="text-blue-600 font-semibold text-lg">{analysisReport.highOrderPercentage || "-------"}</Text>
                                     <Text className="text-gray-500 text-xs">High-value orders (₱1,500+)</Text>
                                 </View>
                             </View>
                             <View className="justify-center items-center bg-gray mt-4 border-y border-gray-500">
                                 <View className="flex flex-column items-center">
-                                    <Text className="text-orange-600 font-semibold text-lg">{analysisReport.peakPeriod}</Text>
+                                    <Text className="text-orange-600 font-semibold text-lg">{analysisReport.peakPeriod || "-------"}</Text>
                                     <Text className="text-gray-500 text-xs">Peak Sales Hours</Text>
                                 </View>
                             </View>

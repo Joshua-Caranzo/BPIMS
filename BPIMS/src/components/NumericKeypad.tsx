@@ -1,6 +1,6 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { ChevronLeft, Delete } from 'react-native-feather';
 import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { Delete } from 'react-native-feather';
 
 type NumericKeypadProps = {
     onPress: (value: string) => void;

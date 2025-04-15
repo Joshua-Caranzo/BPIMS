@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { logOutUser } from './auth';
-import { VITE_MAIN_API } from '@env';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Alert } from 'react-native';
-
+import { logOutUser } from './auth';
+/* 
 const MAIN_API_URL = VITE_MAIN_API;
-//const MAIN_API_URL = 'http://192.168.1.4:5000';
+console.log(MAIN_API_URL) */
+const MAIN_API_URL = 'http://192.168.1.23:5000';
 const baseAxiosInstance = axios.create({
   baseURL: MAIN_API_URL,
   headers: {
