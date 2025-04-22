@@ -18,6 +18,7 @@ import { CartItems, CategoryDto } from '../../../types/salesType';
 import { UserDetails } from '../../../types/userType';
 import { getUserDetails } from '../../../utils/auth';
 import { formatQuantity, truncateShortName } from '../../../utils/dateFormat';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 const ItemScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -155,9 +156,8 @@ const ItemScreen = () => {
 
     const addToCartFaction = useCallback(async () => {
         try {
-            setButtonLoading(true);
-
             if (selectedItem) {
+                setButtonLoading(true);
                 const prevTotalCartItems = totalCartItems;
                 const prevTotalPrice = totalPrice;
                 const prevProducts = products;
@@ -203,9 +203,8 @@ const ItemScreen = () => {
             }
         }
         finally {
-            setButtonLoading(false);
         }
-    }, [selectedItem, quantity, totalCartItems, totalPrice, products, getUserAndCart]);
+    }, [selectedItem, quantity, totalCartItems, totalPrice, products, getUserAndCart, buttonLoading, setButtonLoading]);
 
     const handleCategoryClick = useCallback((id: number) => {
         setLastCategory(activeCategory);
@@ -252,7 +251,7 @@ const ItemScreen = () => {
                         <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
                             {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                    source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }}
                                     className="w-full h-full object-cover"
                                     resizeMode={FastImage.resizeMode.cover}
                                 />
@@ -454,6 +453,9 @@ const ItemScreen = () => {
                                 ADD TO CART
                             </Text>
                         </View>
+                        {buttonLoading && (
+                            <ActivityIndicator size={'small'} color={'white'}></ActivityIndicator>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>

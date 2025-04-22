@@ -23,18 +23,15 @@ const Hexagon: React.FC<HexagonProps> = ({
     itemName,
     itemRewardId
 }) => {
-    // Dimensions
     const height = size * 0.866;
     const strokeWidth = size * 0.02;
 
-    // Colors
     const colors = {
         fill: isDone ? '#fe6500' : 'white',
         text: isDone ? 'white' : '#fe6500',
         stroke: hasItem ? 'red' : isDone ? '#fe6500' : '#fe6500'
     };
 
-    // Get display text
     const getDisplayText = () => {
         if (itemRewardId === 1 && itemName) return itemName;
         if (rewardName) return rewardName;
@@ -48,7 +45,6 @@ const Hexagon: React.FC<HexagonProps> = ({
         const words = text.split(' ');
         if (words.length <= 3) return [text];
 
-        // Split into roughly equal halves
         const mid = Math.ceil(words.length / 2);
         return [
             words.slice(0, mid).join(' '),
@@ -59,11 +55,9 @@ const Hexagon: React.FC<HexagonProps> = ({
     const textLines = splitText(displayText);
     const isMultiline = textLines.length > 1;
 
-    // Calculate text size - smaller for multiline
     const textSize = isMultiline ? size * 0.07 : size * 0.2;
     const lineHeight = textSize * 1.2;
 
-    // Hexagon points
     const getHexagonPoints = () => {
         const points = [
             [size / 2, 0],

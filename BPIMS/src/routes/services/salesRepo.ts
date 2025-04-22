@@ -109,7 +109,7 @@ export async function changeReward(id: number, itemId: number, branchId: number,
 }
 
 export async function getOldestTransaction(branchId: number) {
-    return await getFromBaseApi<CallResultDto<Date>>('getOldestTransaction', { branchId });
+    return await getFromBaseApi<CallResultDto<Date | null>>('getOldestTransaction', { branchId });
 }
 
 export async function generateSalesPDF(from: Date, to: Date, branchId: number) {

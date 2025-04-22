@@ -146,11 +146,27 @@ const StockMonitorScreen = React.memo(() => {
         }
     }, [user, navigation]);
 
-    const constInputMode = useCallback((id: number, qty: number, isWareHouse: boolean, sellByUnit: boolean, itemName: string, branchName: string) => {
-        setQuantity(qty.toString())
-        setEditingItem((prev) => prev ? { ...prev, id, qty, isWareHouse, itemName, branchName, sellByUnit } : { id, qty, isWareHouse, itemName, branchName, sellByUnit });
-        setInputMode((prev) => !prev);
-    }, []);
+    const constInputMode = useCallback(
+        (
+            id: number,
+            qty: number,
+            isWareHouse: boolean,
+            sellByUnit: boolean,
+            itemName: string,
+            branchName: string
+        ) => {
+            const formattedQty = sellByUnit ? Number(qty) : qty;
+
+            setQuantity(formattedQty.toString());
+            setEditingItem((prev) =>
+                prev
+                    ? { ...prev, id, qty, isWareHouse, itemName, branchName, sellByUnit }
+                    : { id, qty, isWareHouse, itemName, branchName, sellByUnit }
+            );
+            setInputMode((prev) => !prev);
+        },
+        []
+    );
 
     const handleKeyPress = useCallback((key: string) => {
         if (editingItem) {

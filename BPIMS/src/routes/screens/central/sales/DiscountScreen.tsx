@@ -59,7 +59,6 @@ const DiscountScreen = React.memo(({ route }: Props) => {
         [activeDiscount, disc, percentage, subTotal]
     );
 
-    // Handle backspace on numeric keypad
     const handleBackspace = useCallback(() => {
         if (activeDiscount === 'percentage') {
             let current = percentage?.replace('.', '') || '';
@@ -78,7 +77,6 @@ const DiscountScreen = React.memo(({ route }: Props) => {
         }
     }, [activeDiscount, disc, percentage, subTotal]);
 
-    // Memoized formatted discount and percentage
     const formattedDiscount = useMemo(() => disc, [disc]);
     const formattedPercentage = useMemo(() => percentage || '0', [percentage]);
 

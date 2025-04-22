@@ -45,17 +45,8 @@ const SalesReportScreen = React.memo(() => {
     const analysisSocketRef = useRef<WebSocket | null>(null);
     const analyticsSocketRef = useRef<WebSocket | null>(null);
     const navigation = useNavigation<NativeStackNavigationProp<SalesReportParamList>>();
-    const [selectedFilter, setSelectedFilter] = useState<FilterType>("Month");
     const screenWidth = Dimensions.get('window').width;
     const [salesData, setSalesData] = useState<SalesData>();
-
-    const chartPadding = 40; // Adjust padding/margin as needed
-
-    const filteredData = salesData ? salesData[selectedFilter] : [];
-    const dataLength = filteredData.length || 1; // Avoid division by zero
-    const calculatedSpacing = selectedFilter === "All" || "Year"
-        ? Math.max((screenWidth - chartPadding) / dataLength, 60)  // If "all" is selected, min 60
-        : Math.max((screenWidth - chartPadding) / dataLength, 30); // Otherwise, min 30
 
     useEffect(() => {
         const fetchUserDetails = async () => {

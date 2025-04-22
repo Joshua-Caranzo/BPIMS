@@ -2,7 +2,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import SelectModal from '../../../../components/SelectModal';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { LoyaltyParamsList } from '../../../navigation/navigation';
@@ -22,8 +21,6 @@ const LoyaltyStageScreen = memo(({ route }: Props) => {
     const [openRewards, setOpenRewards] = useState<boolean>(false);
 
     useEffect(() => {
-        FastImage.clearMemoryCache();
-        FastImage.clearDiskCache();
         initializeStage();
     }, []);
 

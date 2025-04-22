@@ -82,7 +82,7 @@ async def getBranchProducts(itemId):
 
     sqlQuery = """
         SELECT bi.id, bi.branchId, b.name as branchName, bi.quantity
-        From branchItem bi inner join branches b on b.Id = bi.branchId 
+        From branchitem bi inner join branches b on b.Id = bi.branchId 
         where bi.itemId = %s and b.isActive = 1
     """
 

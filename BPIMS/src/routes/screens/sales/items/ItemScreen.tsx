@@ -16,6 +16,7 @@ import { CartItems, CategoryDto, ItemDto } from '../../../types/salesType';
 import { UserDetails } from '../../../types/userType';
 import { getUserDetails } from '../../../utils/auth';
 import { truncateShortName } from '../../../utils/dateFormat';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 const ItemScreen = () => {
     const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -38,6 +39,7 @@ const ItemScreen = () => {
     const [buttonLoading, setButtonLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<string | null>(null);
     const [cartItems, setCartItems] = useState<CartItems[]>([]);
+    const [pendingItems, setPendingItems] = useState<Set<number>>(new Set());
 
     const cartScale = useRef(new Animated.Value(1)).current;
 
@@ -150,39 +152,43 @@ const ItemScreen = () => {
     }, []);
 
     const debouncedAddToCart = useCallback(debounce(async (item: ItemDto) => {
-        if (item.sellByUnit === false) {
+        if (!item.sellByUnit) {
             setSelectedItem(item);
             setTimeout(() => setInputMode(true), 0);
-        } else {
-            const updatedItem = {
-                ...item,
-                quantity: item.quantity > 0 ? item.quantity - 1 : 0,
-            };
+            return;
+        }
+
+        const itemId = item.id;
+        const updatedQuantity = item.quantity > 0 ? item.quantity - 1 : 0;
+
+        setProducts(prev =>
+            prev.map(i =>
+                i.id === itemId ? { ...i, quantity: updatedQuantity } : i
+            )
+        );
+        setTotalCartItems(prev => prev + 1);
+        setTotalPrice(prev => prev + parseFloat(item.price.toString()));
+        setPendingItems(prev => new Set(prev).add(itemId));
+
+        try {
+            await addItemToCart(itemId, 1);
+        } catch (error) {
+            console.error("Add to cart failed:", error);
             setProducts(prev =>
                 prev.map(i =>
-                    i.id === updatedItem.id ? { ...i, quantity: updatedItem.quantity } : i
+                    i.id === itemId ? { ...i, quantity: item.quantity } : i
                 )
             );
-
-            setTotalCartItems(prev => prev + 1);
-            setTotalPrice(prev => prev + parseFloat(updatedItem.price.toString()));
-            try {
-                setButtonLoading(true);
-                await addItemToCart(updatedItem.id, 1);
-            } catch (error) {
-                setProducts(prev =>
-                    prev.map(i =>
-                        i.id === item.id ? { ...i, quantity: item.quantity } : i
-                    )
-                );
-                setTotalCartItems(prev => prev - 1);
-                setTotalPrice(prev => prev - parseFloat(updatedItem.price.toString()));
-            }
-            finally {
-                setButtonLoading(false)
-            }
+            setTotalCartItems(prev => Math.max(prev - 1, 0));
+            setTotalPrice(prev => Math.max(prev - parseFloat(item.price.toString()), 0));
+        } finally {
+            setPendingItems(prev => {
+                const copy = new Set(prev);
+                copy.delete(itemId);
+                return copy;
+            });
         }
-    },), []);
+    }, 200), []);
 
     useEffect(() => {
         if (totalCartItems > 0) {
@@ -336,7 +342,7 @@ const ItemScreen = () => {
                         <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
                             {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                    source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }}
                                     className="w-full h-full object-cover"
                                     resizeMode={FastImage.resizeMode.cover}
                                 />
@@ -374,7 +380,7 @@ const ItemScreen = () => {
                         <View className="z-auto bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center">
                             {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                    source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }}
                                     className="w-full h-full object-cover"
                                     resizeMode={FastImage.resizeMode.cover}
                                 />

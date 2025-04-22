@@ -98,7 +98,7 @@ export function formatShortDateTimePH(dateString: string): string {
     const minutes = date.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
 
-    hours = hours % 12 || 12; // Convert 0 to 12-hour format
+    hours = hours % 12 || 12;
 
     const formattedTime = `${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
 

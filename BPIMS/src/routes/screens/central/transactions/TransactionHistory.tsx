@@ -228,7 +228,6 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                             placeholder="0.00"
                             value={paymentAmount}
                             onChangeText={(text) => {
-                                // Only allow 2 decimal places
                                 const formatted = text.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
                                 const decimalIndex = formatted.indexOf('.');
                                 const limited = decimalIndex >= 0

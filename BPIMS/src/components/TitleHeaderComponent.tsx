@@ -7,8 +7,8 @@ interface TitleHeaderProps {
     title: string;
     userName: string;
     onPress: () => void;
-    showTrash?: boolean | null;  // Prop to control the display of the trash icon
-    onTrashPress?: () => void;  // Prop for trash icon click handler
+    showTrash?: boolean | null;
+    onTrashPress?: () => void;
 }
 
 const TitleHeaderComponent: React.FC<TitleHeaderProps> = ({

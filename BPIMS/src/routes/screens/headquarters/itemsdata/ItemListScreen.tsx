@@ -9,7 +9,7 @@ import ExpandableText from '../../../../components/ExpandableText';
 import HQSidebar from '../../../../components/HQSidebar';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { ItemsHQParamList } from '../../../navigation/navigation';
-import { getCategoriesHQ, getProductsHQ } from '../../../services/itemsHQRepo';
+import { getCategoriesHQ, getItemImage, getProductsHQ } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
 import { CategoryDto } from '../../../types/salesType';
 import { UserDetails } from '../../../types/userType';
@@ -146,7 +146,7 @@ const ItemListScreen = () => {
                     <View className="bg-yellow-500 justify-center items-center h-10 w-16 rounded-lg">
                         {item.imagePath ? (
                             <FastImage
-                                source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }}
                                 style={{ width: 64, height: 40, borderRadius: 8 }}
                                 resizeMode={FastImage.resizeMode.cover}
                             />

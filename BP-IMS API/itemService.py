@@ -2,6 +2,9 @@ from models import BranchItem, StockInput, Item, Branch, WareHouseItem, CartItem
 from utils import create_response, upload_media, delete_media
 from tortoise import Tortoise
 from decimal import Decimal
+from werkzeug.utils import secure_filename
+from config import ITEM_IMAGES
+import os
 
 """ GET METHODS """
 async def get_products(categoryId, branchId, page=1, search=""):
@@ -400,12 +403,14 @@ async def saveItem(data, file):
                 
         await existing_item.save()
 
-    if(file != None):
-            result = upload_media(file)
-            existing_item = await Item.get_or_none(id=itemId)
-            existing_item.imagePath = result["secure_url"]
-            existing_item.imageId = result["public_id"]
-            await existing_item.save()
+    if file is not None:
+        file_name = secure_filename(file.filename)
+        file_path = os.path.join(ITEM_IMAGES, file_name)
+        await file.save(file_path) 
+
+        existing_item = await Item.get_or_none(id=existing_item.id)
+        existing_item.imagePath = file_name  
+        await existing_item.save()
 
     return create_response(True, "Success", itemId, None), 200
 

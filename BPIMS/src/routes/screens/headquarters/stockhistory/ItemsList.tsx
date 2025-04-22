@@ -2,7 +2,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import { ExternalLink, Search } from "react-native-feather";
 import ExpandableText from '../../../../components/ExpandableText';
 import HQSidebar from '../../../../components/HQSidebar';
@@ -37,8 +36,6 @@ const ItemListScreen = () => {
         const getCategoryList = async () => {
             try {
                 setLoadingCategory(true);
-                FastImage.clearMemoryCache();
-                FastImage.clearDiskCache();
                 const response = await getCategoriesHQ();
                 if (response.isSuccess) {
                     setCategories(response.data);
@@ -171,7 +168,7 @@ const ItemListScreen = () => {
                             <View className="flex-row items-center space-x-3">
                                 <View className="flex-row space-x-2">
                                     <TouchableOpacity className="p-2 bg-orange-50 rounded-full"
-                                        onPress={() => handleHistoryView(item.whId, item.name, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        onPress={() => handleHistoryView(branch.id, item.name, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     >
                                         <ExternalLink height={18} color={"#fe6500"}></ExternalLink>
                                     </TouchableOpacity>

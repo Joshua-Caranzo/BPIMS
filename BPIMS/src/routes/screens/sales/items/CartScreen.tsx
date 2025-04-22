@@ -36,6 +36,7 @@ const CartScreen = React.memo(({ route }: Props) => {
   const [buttonLoading, setButtonLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [saveLoading, setSaveLoading] = useState<boolean>(false);
 
   const navigation = useNavigation<NativeStackNavigationProp<ItemStackParamList>>();
   const fetchCartItems = useCallback(async () => {
@@ -267,6 +268,9 @@ const CartScreen = React.memo(({ route }: Props) => {
                 Save
               </Text>
             </View>
+            {buttonLoading && (
+              <ActivityIndicator color={"white"} size={'small'} />
+            )}
           </TouchableOpacity>
         </View>
       </View>

@@ -38,3 +38,9 @@ migrations/
 .env.local
 .env.production
 .env.development
+
+#python config files
+.db.py
+.config.py
+/BP-IMS API/db.py
+/BP-IMS API/config.py

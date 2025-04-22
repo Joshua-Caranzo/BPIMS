@@ -12,6 +12,7 @@ import { BranchStockParamList } from '../../../navigation/navigation';
 import { createStockInput } from '../../../services/stockRepo';
 import { BranchStockDto, StockInputDto } from '../../../types/stockType';
 import { UserDetails } from '../../../types/userType';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 type Props = NativeStackScreenProps<BranchStockParamList, 'StockInput'>;
 
@@ -119,6 +120,7 @@ export default function StockInputScreen({ route }: Props) {
                 setLoading(true)
                 await createStockInput(stockInput)
                 newStockInput();
+                navigation.push('BranchStock');
                 setLoading(false)
             }
         }
@@ -247,7 +249,7 @@ export default function StockInputScreen({ route }: Props) {
                             <View className="w-full flex items-center mt-2 mb-2">
                                 {item.imagePath ? (
                                     <FastImage source={{
-                                        uri: item.imagePath, priority: FastImage.priority.high,
+                                        uri: getItemImage(item.imagePath), priority: FastImage.priority.high,
                                     }} className="w-24 h-24 rounded-lg" />) : (
                                     <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                         <Camera color={"white"} height={32} width={32} />

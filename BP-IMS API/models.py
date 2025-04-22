@@ -220,7 +220,7 @@ class LoyaltyStages(Model):
     itemRewardId = fields.IntField(null=True)
     
     class Meta:
-        table = "loyaltyStages"
+        table = "loyaltystages"
 
 class LoyaltyCustomer(Model):
     id = fields.IntField(pk=True)

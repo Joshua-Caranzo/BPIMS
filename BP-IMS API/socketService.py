@@ -60,7 +60,7 @@ async def dailyTransaction(websocket, branchId):
                 WHERE DATE(tr.transactionDate) = '{singapore_date}'
                 AND TIME(tr.transactionDate) BETWEEN '{period["start"]}' AND '{period["end"]}'
                 AND tr.branchId = {branchId}
-                AND tr.isVoided = 0
+                AND tr.isVoided = 0 and tr.isPaid = 1
                 ORDER BY tr.transactionDate;
             """
             
@@ -80,7 +80,8 @@ async def dailyTransaction(websocket, branchId):
             INNER JOIN users u ON u.id = tr.cashierId
             WHERE DATE(tr.transactionDate) = '{singapore_date}'
             AND tr.branchId = {branchId}
-            AND tr.isVoided = 0
+            AND tr.isVoided = 0 
+            and tr.isPaid = 1
             ORDER BY tr.transactionDate;
         """
         
@@ -127,7 +128,7 @@ async def totalSales(websocket, branchId):
             SELECT SUM(totalAmount) AS totalSales
             FROM transactions
             WHERE YEAR(transactionDate) = {singapore_year}
-            AND branchId = {branchId} AND isVoided = 0
+            AND branchId = {branchId} AND isVoided = 0 and tr.isPaid = 1
         """
         totalSalesPerYear = await connection.execute_query_dict(totalSalesYearQuery)
 
@@ -135,7 +136,7 @@ async def totalSales(websocket, branchId):
             SELECT SUM(totalAmount) AS totalSales
             FROM transactions
             WHERE YEAR(transactionDate) = {singapore_year} AND MONTH(transactionDate) = {singapore_month}
-            AND branchId = {branchId} AND isVoided = 0
+            AND branchId = {branchId} AND isVoided = 0 and tr.isPaid = 1
         """
         totalSalesPerMonth = await connection.execute_query_dict(totalSalesMonthQuery)
 
@@ -167,7 +168,7 @@ async def dailyTransactionHQ(websocket):
             LEFT JOIN transactions tr 
                 ON tr.branchId = b.Id 
                 AND DATE(tr.transactionDate) = '{singapore_date}'
-                AND tr.isVoided = 0
+                AND tr.isVoided = 0 and tr.isPaid = 1
             WHERE b.isActive = 1
             GROUP BY b.id;
         """
@@ -186,7 +187,7 @@ async def dailyTransactionHQ(websocket):
             JOIN transactions tr ON ti.transactionId = tr.id
             JOIN branches b ON tr.branchId = b.id
             WHERE DATE(tr.transactionDate) = '{singapore_date}' AND tr.isVoided = 0
-            AND b.isActive = 1
+            AND b.isActive = 1 and tr.isPaid = 1
             GROUP BY b.id, i.id
         )
         SELECT branchName, itemName, totalSales
@@ -352,7 +353,7 @@ async def analyticsData(websocket, branch_id=1):
                         DATE_SUB('{singapore_date}', INTERVAL WEEKDAY('{singapore_date}') + 1 DAY) 
                         AND 
                         DATE_SUB('{singapore_date}', INTERVAL WEEKDAY('{singapore_date}') - 4 DAY)
-                    AND tr.branchId = {branch_id} AND tr.isVoided = 0
+                    AND tr.branchId = {branch_id} AND tr.isVoided = 0 and tr.isPaid = 1
                 """,
             "Month": f"""
                 SELECT 
@@ -366,6 +367,7 @@ async def analyticsData(websocket, branch_id=1):
                                       AND LAST_DAY('{singapore_date}') THEN tr.totalAmount END), 0) AS Week_4
                 FROM transactions tr
                 WHERE MONTH(tr.transactionDate) = {singapore_month} AND YEAR(tr.transactionDate) = {singapore_year} AND tr.branchId = {branch_id} AND tr.IsVoided = 0
+                and tr.isPaid = 1
             """,
             "Year": f"""
                 SELECT 
@@ -384,7 +386,7 @@ async def analyticsData(websocket, branch_id=1):
                 FROM transactions tr
                 INNER JOIN users u ON u.id = tr.cashierId
                 WHERE YEAR(tr.transactionDate) = {singapore_year} 
-                AND tr.branchId = {branch_id} AND tr.isVoided = 0
+                AND tr.branchId = {branch_id} AND tr.isVoided = 0 and tr.isPaid = 1
             """,
             "All": f"""
                 WITH RECURSIVE MonthSeries AS (
@@ -402,7 +404,7 @@ async def analyticsData(websocket, branch_id=1):
                 FROM MonthSeries ms
                 LEFT JOIN transactions tr 
                     ON DATE_FORMAT(tr.transactionDate, '%Y-%m') = DATE_FORMAT(ms.monthStart, '%Y-%m')
-                    AND tr.branchId = {branch_id} AND tr.isVoided = 0
+                    AND tr.branchId = {branch_id} AND tr.isVoided = 0 and tr.isPaid = 1
                 GROUP BY ms.monthStart, YearMonth  
                 ORDER BY ms.monthStart;
             """
@@ -466,7 +468,7 @@ async def analysisReport(websocket, branchId):
                 END AS percentageChange
             FROM transactions
             INNER JOIN branches b ON b.Id = transactions.branchId
-            WHERE b.id = {branchId} AND transactions.isVoided = 0
+            WHERE b.id = {branchId} AND transactions.isVoided = 0 and transactions.isPaid = 1
         """
 
         percentage = await connection.execute_query_dict(percentQuery)
@@ -525,7 +527,7 @@ async def analysisReport(websocket, branchId):
                 END AS highOrderPercentage
             FROM transactions
             INNER JOIN branches b ON b.Id = transactions.branchId
-            WHERE b.id = {branchId} AND transactions.isVoided = 0
+            WHERE b.id = {branchId} AND transactions.isVoided = 0 and transactions.isPaid = 1
         """
         highSmallValue = await connection.execute_query_dict(highSmallQuery)
 
@@ -693,7 +695,7 @@ async def analysisReportHQ(websocket):
                     ELSE 0.0 
                 END AS percentageChange
             FROM transactions
-            WHERE isVoided = 0
+            WHERE isVoided = 0 and isPaid = 1
         """
 
         percentage = await connection.execute_query_dict(percentQuery)
@@ -748,7 +750,7 @@ async def analysisReportHQ(websocket):
                         ) 
                 END AS highOrderPercentage
             FROM transactions
-            WHERE isVoided = 0
+            WHERE isVoided = 0 and isPaid = 1
         """
         highSmallValue = await connection.execute_query_dict(highSmallQuery)
 
