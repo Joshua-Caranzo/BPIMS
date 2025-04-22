@@ -5,6 +5,7 @@ from decimal import Decimal
 from tortoise import Tortoise
 import pytz
 import customerService
+from tortoise.transactions import in_transaction
 
 sgt = pytz.timezone('Asia/Singapore')
 
@@ -42,7 +43,7 @@ async def getTotalItemCount(cartId):
                     ELSE 1 
                    END) AS total_count
         FROM cartitems ci
-        INNER JOIN branchItem bi ON ci.branchItemId = bi.id
+        INNER JOIN branchitem bi ON ci.branchItemId = bi.id
         INNER JOIN items i on i.id = bi.itemId
         WHERE ci.cartId = %s
     """
@@ -116,8 +117,6 @@ async def deleteAllCartItems(cartId):
 
     return create_response(True, message), 200
 
-from decimal import Decimal
-
 async def addItemToCart(cartId, itemId, quantity):
     item = await Item.get_or_none(id=itemId)
     quantity_decimal = Decimal(str(quantity))
@@ -125,31 +124,31 @@ async def addItemToCart(cartId, itemId, quantity):
     if not item:
         return create_response(False, 'Item not found', None, None), 200
 
-    cart = await Cart.get_or_none(id=cartId)
-    if not cart:
-        return create_response(False, 'Cart not found', None, None), 200
+    async with in_transaction():
+        cart = await Cart.select_for_update().get_or_none(id=cartId)
+        if not cart:
+            return create_response(False, 'Cart not found', None, None), 200
 
-    user = await User.get_or_none(id=cart.userId)
-    branch_item = await BranchItem.get_or_none(itemId=itemId, branchId=user.branchId)
+        user = await User.get_or_none(id=cart.userId)
+        branch_item = await BranchItem.get_or_none(itemId=itemId, branchId=user.branchId)
 
-    if not branch_item or branch_item.quantity < quantity_decimal:
-        return create_response(False, 'Not enough stock available for this item', None, None), 200
+        if not branch_item or branch_item.quantity < quantity_decimal:
+            return create_response(False, 'Not enough stock available for this item', None, None), 200
 
-    existing_cart_item = await CartItems.get_or_none(cartId=cart.id, branchItemId=branch_item.id)
+        existing_cart_item = await CartItems.get_or_none(cartId=cart.id, branchItemId=branch_item.id)
 
-    if existing_cart_item:
-        existing_cart_item.quantity += quantity_decimal
-        await existing_cart_item.save()
-        message = 'Item quantity updated in the cart'
-    else:
-        await CartItems.create(cartId=cart.id, branchItemId=branch_item.id, quantity=quantity_decimal)
-        message = 'Item successfully added to the cart' 
+        if existing_cart_item:
+            existing_cart_item.quantity += quantity_decimal
+            await existing_cart_item.save()
+            message = 'Item quantity updated in the cart'
+        else:
+            await CartItems.create(cartId=cart.id, branchItemId=branch_item.id, quantity=quantity_decimal)
+            message = 'Item successfully added to the cart'
 
-    cart = await Cart.get_or_none(id=cartId)
-    cart.subTotal += item.price * quantity_decimal
-    await cart.save()       
+        cart.subTotal += item.price * quantity_decimal
+        await cart.save()
+
     return create_response(True, message, None, None), 200
-
 
 async def updateItemQuantity(cartItemId, quantity):
     cartItem = await CartItems.get_or_none(id = cartItemId)
@@ -337,7 +336,7 @@ async def processPayment(cartId, amountReceived):
             done = await customerService.markNextStageDone(customer.id)
         else:
             await customerService.saveLoyaltyCustomer(customer.id)
-            customer.isLoyalty = True
+        customer.isLoyalty = True
 
         query = """
             SELECT ls.orderId, ls.itemRewardId, lc.id as lcId
@@ -607,6 +606,6 @@ async def getOldestTransaction(branchId):
         transaction = await Transaction.all().order_by('transactionDate').first()
     
     if not transaction:
-        return create_response(False, 'Transaction not found!'), 404
+        return create_response(False, 'Transaction not found!'), 200
     
     return create_response(True, 'Transaction retrieved successfully', transaction.transactionDate), 200

@@ -26,7 +26,7 @@ export async function deleteItem(id: number) {
     return await putToBaseApi<CallResultDto<object>>('deleteItem', { id });
 }
 
-export async function getItemImage(fileName: string) {
+export function getItemImage(fileName: string) {
     const timestamp = Date.now();
     return `${baseUrl}/getItemImage?fileName=${fileName}&t=${timestamp}`;
 }

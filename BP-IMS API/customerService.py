@@ -5,6 +5,8 @@ from tortoise.queryset import Q
 from datetime import date
 from tortoise import Tortoise
 from decimal import Decimal
+from werkzeug.utils import secure_filename
+from config import CUSTOMER_IMAGES
 
 async def getCustomerList(branchId = None, search = ""):
 
@@ -33,7 +35,7 @@ async def getCustomer(id):
                 SELECT tr.id, tr.amountReceived, tr.totalAmount, tr.slipNo, tr.transactionDate, tr.isVoided, u.name as cashier 
                 FROM transactions tr 
                 INNER JOIN users u ON u.id = tr.cashierId
-                WHERE customerId = %s
+                WHERE tr.customerId = %s AND tr.isPaid = 1
             """
 
             transactions = await Tortoise.get_connection("default").execute_query_dict(query, [id])
@@ -126,12 +128,15 @@ async def saveCustomer(data, file):
 
         message = "Customer updated successfully."
 
-    if(file != None):
-            result = upload_media(file)
-            existing_customer = await Customer.get_or_none(id=customerId)
-            existing_customer.fileName = result["secure_url"]
-            existing_customer.imageId = result["public_id"]
-            await existing_customer.save()
+    if file is not None:
+        file_name = secure_filename(file.filename)
+        file_path = os.path.join(CUSTOMER_IMAGES, file_name)
+        await file.save(file_path) 
+
+        existing_customer = await Customer.get_or_none(id=customerId)
+        existing_customer.fileName = file_name  
+        existing_customer.imageId = file_name 
+        await existing_customer.save()
 
     return create_response(True, message, customerId, None), 200
 
@@ -149,6 +154,7 @@ async def deleteCustomer(id):
     carts = await Cart.filter(customerId=id)
 
     transactions = await Transaction.filter(customerId=id)
+    loyaltyCustomer = await LoyaltyCustomer.filter(customerId = id)
 
     for cart in carts:
         cart.customerId = None
@@ -157,6 +163,9 @@ async def deleteCustomer(id):
     for transaction in transactions:
         transaction.customerId = None
         await transaction.save()
+    
+    for cust in loyaltyCustomer:
+        await cust.delete()
 
     await customer.delete()
 
@@ -269,7 +278,7 @@ async def markNextStageDone(customerId):
     query = """
         SELECT lc.id AS loyalty_customer_id, lc.stageId, lc.isDone, ls.orderId
         FROM loyaltycustomers lc
-        JOIN loyaltyStages ls ON lc.stageId = ls.id
+        JOIN loyaltystages ls ON lc.stageId = ls.id
         WHERE lc.customerId = %s
         ORDER BY ls.orderId ASC
     """
@@ -316,7 +325,7 @@ async def getLoyaltyCardList():
 async def getLoyaltyStages(cardId):
 
     sqlQuery = """
-        SELECT ls.id, ls.orderId, ls.loyaltyCardId, ls.itemRewardId, ir.name as rewardName from loyaltyStages ls 
+        SELECT ls.id, ls.orderId, ls.loyaltyCardId, ls.itemRewardId, ir.name as rewardName from loyaltystages ls 
         LEFT JOIN itemRewards ir on ir.Id = ls.itemRewardId
         WHERE ls.loyaltyCardId = %s
         ORDER BY ls.orderId
@@ -356,8 +365,8 @@ async def getCustomerLoyalty(customerId):
     
     sqlQuery = """
         SELECT lc.*, ls.itemRewardId, r.name, l.validYear, ls.orderId, i.name itemName
-        from loyaltyCustomers lc
-        inner join loyaltyStages ls on ls.id = lc.stageId
+        from loyaltycustomers lc
+        inner join loyaltystages ls on ls.id = lc.stageId
         LEFT JOIN itemrewards r on r.id = ls.itemRewardId
         INNER JOIN loyaltycards l on l.id = ls.loyaltyCardId
         left join branchitem bi on bi.id = lc.itemId

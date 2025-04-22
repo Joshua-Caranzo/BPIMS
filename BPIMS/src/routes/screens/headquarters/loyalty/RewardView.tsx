@@ -2,7 +2,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { LoyaltyParamsList } from '../../../navigation/navigation';
 import { saveRewards } from '../../../services/customerRepo';
@@ -20,8 +19,6 @@ const RewardViewScreen = memo(({ route }: Props) => {
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
 
     useEffect(() => {
-        FastImage.clearMemoryCache();
-        FastImage.clearDiskCache();
         initializeCard();
     }, []);
 

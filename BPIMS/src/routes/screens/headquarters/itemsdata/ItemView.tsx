@@ -22,7 +22,7 @@ import NumericKeypad from '../../../../components/NumericKeypad';
 import SelectModal from '../../../../components/SelectModal';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { ItemsHQParamList } from '../../../navigation/navigation';
-import { deleteItem, getCategoriesHQ, saveItem } from '../../../services/itemsHQRepo';
+import { deleteItem, getCategoriesHQ, getItemImage, saveItem } from '../../../services/itemsHQRepo';
 import { ItemHQDto } from '../../../types/itemType';
 import { CategoryDto } from '../../../types/salesType';
 import { formatPrice } from '../../../utils/dateFormat';
@@ -64,6 +64,10 @@ const ItemViewScreen = ({ route }: Props) => {
             FastImage.clearDiskCache();
             if (item.id !== 0) {
                 setEditingItem(item);
+                if (item.imagePath) {
+                    const url = getItemImage(item.imagePath)
+                    setFileUrl(url)
+                }
             } else {
                 const newItem: ItemHQDto = {
                     id: 0,
@@ -153,8 +157,7 @@ const ItemViewScreen = ({ route }: Props) => {
 
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
-            mediaType: 'photo' as MediaType,
-            quality: 0.1,
+            mediaType: 'photo' as MediaType
         };
 
         const handleResponse = async (response: any) => {
@@ -164,20 +167,7 @@ const ItemViewScreen = ({ route }: Props) => {
                 Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
                 const fileUri = response.assets[0].uri;
-
-                const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
-                const fileSize = fileInfo.size;
-
-                if (fileSize > MAX_FILE_SIZE) {
-                    Alert.alert(
-                        'File Too Large',
-                        `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
-                        [{ text: 'OK' }]
-                    );
-                    setFileUrl(null);
-                } else {
-                    setFileUrl(fileUri);
-                }
+                setFileUrl(fileUri);
             } else {
                 Alert.alert('No image selected');
             }

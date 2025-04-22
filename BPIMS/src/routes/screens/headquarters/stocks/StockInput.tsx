@@ -15,6 +15,7 @@ import { createWHStockInput } from '../../../services/whRepo';
 import { StockInputDto } from '../../../types/stockType';
 import { ObjectDto } from '../../../types/userType';
 import { WHStockInputDto } from '../../../types/whType';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 type Props = NativeStackScreenProps<StockMonitorParamList, 'StockInput'>;
 
@@ -133,6 +134,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                     await createWHStockInput(stockInput)
                 }
             initializeStockInput();
+            navigation.navigate('StockMonitor')
             setLoading(false)
         }
         finally {
@@ -270,7 +272,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                     <ExpandableText text={item.name}></ExpandableText>
                     <View className="w-full flex items-center mt-2 mb-2">
                         {item.imagePath ? (
-                            <FastImage source={{ uri: item.imagePath, priority: FastImage.priority.high }} className="w-24 h-24 rounded-lg" />) : (
+                            <FastImage source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }} className="w-24 h-24 rounded-lg" />) : (
                             <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                 <Camera color={"white"} height={32} width={32} />
                                 <Text className='text-white text-xs mt-1'>No Image</Text>
@@ -384,7 +386,7 @@ const StockInputScreen = memo(({ route }: Props) => {
                 </View>
             )}
         </View >
-    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, stockInput, user?.name, isValid, openSuppliers, suppliers]);
+    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, stockInput, user?.name, isValid, openSuppliers, suppliers, loading]);
 
     return (
         <View className="flex flex-1">

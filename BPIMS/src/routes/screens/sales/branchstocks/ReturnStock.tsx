@@ -11,6 +11,7 @@ import { BranchStockParamList } from '../../../navigation/navigation';
 import { returnToWH } from '../../../services/stockRepo';
 import { BranchStockDto } from '../../../types/stockType';
 import { ReturnToWHDto, UserDetails } from '../../../types/userType';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 type Props = NativeStackScreenProps<BranchStockParamList, 'ReturnStock'>;
 
@@ -105,6 +106,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
             setLoading(true)
             await returnToWH(returnStock);
             newReturnStock();
+            navigation.push('BranchStock')
             setLoading(false)
         }
     }, [returnStock, newReturnStock]);
@@ -204,7 +206,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
                     <View className="w-full flex items-center mt-2 mb-2">
                         {item.imagePath ? (
                             <FastImage source={{
-                                uri: item.imagePath, priority: FastImage.priority.high,
+                                uri: getItemImage(item.imagePath), priority: FastImage.priority.high,
                             }} className="w-24 h-24 rounded-lg" />) : (
                             <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                 <Camera color={"white"} height={32} width={32} />
@@ -258,7 +260,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
                         className={`w-[95%] rounded-xl p-3 flex flex-row items-center ${!isValid ? 'bg-gray border-2 border-[#fe6500]' : 'bg-[#fe6500]'}`}
                         disabled={!isValid}
                     >
-                        <View className="flex-1 flex flex-row items-center justify-center">
+                        <View className="flex-1 items-center">
                             <Text className={`font-bold text-lg ${!isValid ? 'text-[#fe6500]' : 'text-white'}`}>SAVE</Text>
                         </View>
                         {loading && (
@@ -268,7 +270,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
                 </View>
             )}
         </View>
-    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, returnStock, user?.name, isValid]);
+    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, returnStock, user?.name, loading]);
 
     return (
         <View className="flex flex-1">

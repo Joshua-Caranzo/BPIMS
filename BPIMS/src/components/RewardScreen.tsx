@@ -9,6 +9,7 @@ import { truncateShortName } from '../routes/utils/dateFormat';
 import ExpandableText from './ExpandableText';
 import NumericKeypad from './NumericKeypad';
 import TitleHeaderComponent from './TitleHeaderComponent';
+import { getItemImage } from '../routes/services/itemsHQRepo';
 
 type Props = {
     user: any;
@@ -161,7 +162,7 @@ const RewardScreen = ({ user, selectItem, onClose }: Props) => {
                         <View className="bg-gray-600 w-full aspect-[1] rounded-t-lg overflow-hidden justify-center items-center relative">
                             {item.imagePath ? (
                                 <FastImage
-                                    source={{ uri: item.imagePath, priority: FastImage.priority.high }}
+                                    source={{ uri: getItemImage(item.imagePath), priority: FastImage.priority.high }}
                                     style={{ width: '100%', height: '100%' }}
                                     resizeMode={FastImage.resizeMode.cover}
                                 />

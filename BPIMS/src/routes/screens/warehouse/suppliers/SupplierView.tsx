@@ -11,7 +11,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import FastImage from 'react-native-fast-image';
 import RNFS from 'react-native-fs';
 import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
@@ -66,8 +65,6 @@ const SupplierViewScreen = React.memo(({ route }: Props) => {
     const fetchsupplier = useCallback(async () => {
         try {
             setLoading(true);
-            FastImage.clearMemoryCache();
-            FastImage.clearDiskCache();
             if (supplierId != 0 && supplierId != null) {
                 const response = await getSupplier(supplierId);
                 const historyResponse = await getSupplierStockHistory(supplierId)
@@ -98,8 +95,7 @@ const SupplierViewScreen = React.memo(({ route }: Props) => {
 
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
-            mediaType: 'photo' as MediaType,
-            quality: 0.1,
+            mediaType: 'photo' as MediaType
         };
 
         const handleResponse = async (response: any) => {
@@ -109,20 +105,7 @@ const SupplierViewScreen = React.memo(({ route }: Props) => {
                 Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
                 const fileUri = response.assets[0].uri;
-
-                const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
-                const fileSize = fileInfo.size;
-
-                if (fileSize > MAX_FILE_SIZE) {
-                    Alert.alert(
-                        'File Too Large',
-                        `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
-                        [{ text: 'OK' }]
-                    );
-                    setFileUrl(null);
-                } else {
-                    setFileUrl(fileUri);
-                }
+                setFileUrl(fileUri);
             } else {
                 Alert.alert('No image selected');
             }

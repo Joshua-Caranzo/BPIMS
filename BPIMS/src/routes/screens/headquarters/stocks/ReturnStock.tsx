@@ -13,6 +13,7 @@ import { returnToSupplier } from '../../../services/whRepo';
 import { ItemStock } from '../../../types/stockType';
 import { ObjectDto, UserDetails } from '../../../types/userType';
 import { ReturnToStockDto } from '../../../types/whType';
+import { getItemImage } from '../../../services/itemsHQRepo';
 
 type Props = NativeStackScreenProps<StockMonitorParamList, 'ReturnStock'>;
 
@@ -118,6 +119,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
             setLoading(true)
             await returnToSupplier(returnStock);
             newReturnStock();
+            navigation.navigate('StockMonitor')
             setLoading(false)
         }
     }, [returnStock, newReturnStock]);
@@ -223,7 +225,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
                     <View className="w-full flex items-center mt-2 mb-2">
                         {item.imagePath ? (
                             <FastImage source={{
-                                uri: item.imagePath, priority: FastImage.priority.high,
+                                uri: getItemImage(item.imagePath), priority: FastImage.priority.high,
                             }} className="w-24 h-24 rounded-lg" />) : (
                             <View className="w-full h-24 bg-gray-500 rounded-lg justify-center items-center">
                                 <Camera color={"white"} height={32} width={32} />
@@ -303,7 +305,7 @@ const ReturnStockScreen = memo(({ route }: Props) => {
                 </View>
             )}
         </View>
-    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, returnStock, user?.name, isValid, suppliers, openSuppliers]);
+    ), [handleChange, item, keyboardVisible, navigation, openDate, saveStockInput, returnStock, user?.name, isValid, suppliers, openSuppliers, loading]);
 
     return (
         <View className="flex flex-1">

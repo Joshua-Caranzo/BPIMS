@@ -70,9 +70,9 @@ export type EditingItemDto = {
 };
 
 export type WHBranchStock = {
-    id: number; // branchitem ID
-    branchId: number; // actual branch ID
-    name: string; // branch name
+    id: number;
+    branchId: number;
+    name: string;
     quantity: number;
     criticalValue: number;
 };

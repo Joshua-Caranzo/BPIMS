@@ -176,11 +176,15 @@ async def removeSupplier(id):
         return create_response(False, "Supplier not found", None, None), 404 
 
     whStockHistory = await WHStockInput.filter(deliveredBy=existingSupplier.id).all() 
-
+    supplierReturns = await SupplierReturn.filter(supplierId = existingSupplier.id).all()
+    
     for stock in whStockHistory:
         stock.deliveredBy = None  
         await stock.save()
 
+    for supReturn in supplierReturns:
+        await supReturn.delete()
+        
     await existingSupplier.delete() 
 
     return create_response(True, "Success", None, None), 200

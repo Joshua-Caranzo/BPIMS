@@ -19,7 +19,7 @@ import { CameraOptions, ImageLibraryOptions, launchCamera, launchImageLibrary, M
 import Hexagon from '../../../../components/Hexagon';
 import TitleHeaderComponent from '../../../../components/TitleHeaderComponent';
 import { CustomerHQStackParamList } from '../../../navigation/navigation';
-import { deleteCustomer, getCurrentLoyaltyCustomer, getCustomer, saveCustomer } from '../../../services/customerRepo';
+import { deleteCustomer, getCurrentLoyaltyCustomer, getCustomer, getCustomerImage, saveCustomer } from '../../../services/customerRepo';
 import { CurrentCustomerLoyalty, CustomerDto, OrderHistory } from '../../../types/customerType';
 import { capitalizeFirstLetter, formatTransactionDate } from '../../../utils/dateFormat';
 
@@ -38,7 +38,6 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
     const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
     const [nameExists, setNameExists] = useState<boolean>(false);
     const [isValid, setIsValid] = useState<boolean>(false);
-    const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const [activeCategory, setActiveCategory] = useState(0);
     const [loyaltyStages, setLoyaltyStages] = useState<CurrentCustomerLoyalty[]>([]);
 
@@ -79,7 +78,10 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 if (response) {
                     setCustomer(response.data.customer);
                     setOrderHistory(response.data.orderHistory ?? []);
-                    setFileUrl(response.data.customer.fileName)
+                    let uri = ""
+                    if (response.data.customer.fileName)
+                        uri = await getCustomerImage(response.data.customer.fileName)
+                    setFileUrl(uri)
                 }
                 if (responeLoyalty) {
                     setLoyaltyStages(responeLoyalty.data ?? [])
@@ -112,8 +114,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
 
     const handleImageSelect = useCallback(() => {
         const options: CameraOptions & ImageLibraryOptions = {
-            mediaType: 'photo' as MediaType,
-            quality: 0.1,
+            mediaType: 'photo' as MediaType
         };
 
         const handleResponse = async (response: any) => {
@@ -123,20 +124,7 @@ const CustomerViewScreen = React.memo(({ route }: Props) => {
                 Alert.alert('An error occurred while selecting an image.');
             } else if (response.assets && response.assets.length > 0) {
                 const fileUri = response.assets[0].uri;
-
-                const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
-                const fileSize = fileInfo.size;
-
-                if (fileSize > MAX_FILE_SIZE) {
-                    Alert.alert(
-                        'File Too Large',
-                        `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
-                        [{ text: 'OK' }]
-                    );
-                    setFileUrl(null);
-                } else {
-                    setFileUrl(fileUri);
-                }
+                setFileUrl(fileUri);
             } else {
                 Alert.alert('No image selected');
             }

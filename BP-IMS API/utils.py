@@ -57,6 +57,8 @@ def hash_password_md5(password: str) -> str:
 def sanitize_filename(filename):
     return re.sub(r'[<>:"/\\|?*\t\n\r]', '_', filename) 
 
+
+#cloudinary --for testing prod
 def upload_media(file_path):
     response = cloudinary.uploader.upload(file_path, resource_type="auto")
     

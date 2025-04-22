@@ -107,7 +107,7 @@ const SalesReportScreen = React.memo(() => {
             branchesResponse.unshift(allBranch);
             setUser(user);
             setReportBranches(branchesResponse);
-            setStartTransactionDate(oldestDate.data)
+            setStartTransactionDate(oldestDate.data ? oldestDate.data : new Date())
         };
         fetchUserDetails();
     }, []);

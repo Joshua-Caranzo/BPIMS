@@ -74,8 +74,7 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
 
   const handleImageSelect = useCallback(() => {
     const options: CameraOptions & ImageLibraryOptions = {
-      mediaType: 'photo' as MediaType,
-      quality: 0.1,
+      mediaType: 'photo' as MediaType
     };
 
     const handleResponse = async (response: any) => {
@@ -85,20 +84,7 @@ const NewCustomerScreen = React.memo(({ route }: Props) => {
         Alert.alert('An error occurred while selecting an image.');
       } else if (response.assets && response.assets.length > 0) {
         const fileUri = response.assets[0].uri;
-
-        const fileInfo = await RNFS.stat(fileUri.replace('file://', ''));
-        const fileSize = fileInfo.size;
-
-        if (fileSize > MAX_FILE_SIZE) {
-          Alert.alert(
-            'File Too Large',
-            `The selected image is too large (${(fileSize / 1024 / 1024).toFixed(2)} MB). Please select an image smaller than ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
-            [{ text: 'OK' }]
-          );
-          setFileUrl(null);
-        } else {
-          setFileUrl(fileUri);
-        }
+        setFileUrl(fileUri);
       } else {
         Alert.alert('No image selected');
       }

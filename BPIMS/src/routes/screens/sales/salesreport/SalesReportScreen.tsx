@@ -55,13 +55,13 @@ const SalesReportScreen = React.memo(() => {
     const [transactionHistory, setTransactionHistory] = useState<DailyTransactionDto[]>([]);
     const [transactionHistoryCount, setTransactionHistoryCount] = useState<number>();
 
-    const chartPadding = 40; // Adjust padding/margin as needed
+    const chartPadding = 40;
 
     const filteredData = salesData ? salesData[selectedFilter] : [];
-    const dataLength = filteredData.length || 1; // Avoid division by zero
+    const dataLength = filteredData.length || 1;
     const calculatedSpacing = selectedFilter === "All" || "Year"
-        ? Math.max((screenWidth - chartPadding) / dataLength, 60)  // If "all" is selected, min 60
-        : Math.max((screenWidth - chartPadding) / dataLength, 30); // Otherwise, min 30
+        ? Math.max((screenWidth - chartPadding) / dataLength, 60)
+        : Math.max((screenWidth - chartPadding) / dataLength, 30);
 
     useEffect(() => {
         const fetchUserDetails = async () => {

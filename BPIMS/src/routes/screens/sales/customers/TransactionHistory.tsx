@@ -284,10 +284,20 @@ const TransactionHistoryScreen = React.memo(({ route }: Props) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={handleVoid}
-                        className="w-[25%] rounded-r-xl p-3 items-center flex flex-row justify-center bg-gray-900"
+                        disabled={transaction.isVoided}
+                        className={`w-[25%] rounded-r-xl p-3 items-center flex flex-row justify-center ${transaction.isVoided ? 'bg-red-500 p-4' : 'bg-gray-900'
+                            }`}
                     >
-                        <Trash2 height={28} width={28} color="white" />
-                        <Text className="font-bold text-white ml-2">VOID</Text>
+                        {transaction.isVoided ? (
+                            <>
+                                <Text className="font-bold text-white">VOIDED</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 height={28} width={28} color="white" />
+                                <Text className="font-bold text-white ml-2">VOID</Text>
+                            </>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
